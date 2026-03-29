@@ -21,16 +21,16 @@ type ARIMAConfig struct {
 type arimaEngine struct {
 	config ARIMAConfig
 
-	mu           sync.RWMutex
-	arCoeffs    []float64
-	maCoeffs    []float64
-	diffData    []float64
-	residuals   []float64
-	lastValues  []float64 // last D original values for undifferencing
-	mean        float64
-	rmse        float64
-	trainedAt   time.Time
-	trained     bool
+	mu         sync.RWMutex
+	arCoeffs   []float64
+	maCoeffs   []float64
+	diffData   []float64
+	residuals  []float64
+	lastValues []float64 // last D original values for undifferencing
+	mean       float64
+	rmse       float64
+	trainedAt  time.Time
+	trained    bool
 }
 
 // NewARIMA creates a new ARIMA forecaster with the given (p,d,q) configuration.

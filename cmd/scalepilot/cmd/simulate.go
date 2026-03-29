@@ -112,9 +112,9 @@ func runSimulate(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "TIME\tPREDICTED\tLOWER_95\tUPPER_95")
+	_, _ = fmt.Fprintln(w, "TIME\tPREDICTED\tLOWER_95\tUPPER_95")
 	for i, dp := range forecastResult.PredictedValues {
-		fmt.Fprintf(w, "%s\t%.2f\t%.2f\t%.2f\n",
+		_, _ = fmt.Fprintf(w, "%s\t%.2f\t%.2f\t%.2f\n",
 			dp.Timestamp.Format("15:04:05"),
 			dp.Value,
 			forecastResult.ConfidenceLower[i].Value,

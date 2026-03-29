@@ -102,7 +102,7 @@ func (s *SlackSender) post(ctx context.Context, payload interface{}) error {
 	if err != nil {
 		return fmt.Errorf("sending slack notification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -181,7 +181,7 @@ func (p *PagerDutySender) Send(ctx context.Context, alert Alert) error {
 	if err != nil {
 		return fmt.Errorf("sending pagerduty notification: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)

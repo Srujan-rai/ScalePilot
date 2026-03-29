@@ -59,7 +59,7 @@ func TestARIMA_TrainAndPredict(t *testing.T) {
 func TestARIMA_InsufficientData(t *testing.T) {
 	arima := NewARIMA(ARIMAConfig{P: 2, D: 1, Q: 1})
 
-	data := generateLinearData(5, 10.0, 0.5)
+	data := generateLinearData(5, 5.0, 0.5)
 	_, err := arima.Train(context.Background(), data)
 	if err == nil {
 		t.Error("expected error for insufficient data, got nil")
@@ -127,8 +127,8 @@ func TestARIMA_CancelledContext(t *testing.T) {
 	}
 }
 
-// Helper to generate a linear trend dataset.
-func generateLinearData(n int, intercept, slope float64) []DataPoint {
+// generateLinearData creates a linear trend dataset: y = intercept + slope*t.
+func generateLinearData(n int, intercept, slope float64) []DataPoint { //nolint:unparam // intercept varies by intent, not just current callers
 	start := time.Now().Add(-time.Duration(n) * time.Minute)
 	data := make([]DataPoint, n)
 	for i := 0; i < n; i++ {

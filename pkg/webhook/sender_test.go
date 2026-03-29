@@ -86,43 +86,7 @@ func TestSlackSender_NoChannel(t *testing.T) {
 	}
 }
 
-func TestPagerDutySender_Send(t *testing.T) {
-	var receivedBody map[string]interface{}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(body, &receivedBody)
-
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer server.Close()
-
-	// Create the sender with the test server URL.
-	pd := &PagerDutySender{
-		routingKey: "test-routing-key",
-		severity:   "critical",
-		httpClient: &http.Client{Timeout: 5 * time.Second},
-	}
-
-	// Override the PagerDuty URL by using the test server directly.
-	alert := Alert{
-		Title:     "Budget Breached",
-		Message:   "Spend exceeded ceiling",
-		Severity:  SeverityCritical,
-		Namespace: "production",
-		Resource:  "ScalingBudget/prod-budget",
-		Timestamp: time.Now(),
-	}
-
-	// We can't easily redirect PagerDuty URL in the Send method, so test
-	// the payload construction separately.
-	_ = pd
-	_ = alert
-
-	// Test the name.
+func TestPagerDutySender_Name(t *testing.T) {
 	sender := NewPagerDutySender("key", "warning")
 	if sender.Name() != "PagerDuty" {
 		t.Errorf("expected name 'PagerDuty', got %q", sender.Name())

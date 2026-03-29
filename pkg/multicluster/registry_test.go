@@ -52,8 +52,10 @@ func TestRegistry_Unregister(t *testing.T) {
 	checker := newMockHealthChecker()
 	reg := NewRegistry(checker)
 
-	// Manually insert an entry to avoid needing real kubeconfig parsing.
-	cr := reg.(*clusterRegistry)
+	cr, ok := reg.(*clusterRegistry)
+	if !ok {
+		t.Fatal("expected *clusterRegistry")
+	}
 	cr.mu.Lock()
 	cr.clusters["test"] = &ClusterEntry{Name: "test", Healthy: true, Priority: 0}
 	cr.mu.Unlock()
@@ -75,7 +77,10 @@ func TestRegistry_List_SortedByPriority(t *testing.T) {
 	checker := newMockHealthChecker()
 	reg := NewRegistry(checker)
 
-	cr := reg.(*clusterRegistry)
+	cr, ok := reg.(*clusterRegistry)
+	if !ok {
+		t.Fatal("expected *clusterRegistry")
+	}
 	cr.mu.Lock()
 	cr.clusters["high"] = &ClusterEntry{Name: "high", Priority: 10, Healthy: true}
 	cr.clusters["low"] = &ClusterEntry{Name: "low", Priority: 1, Healthy: true}
@@ -101,7 +106,10 @@ func TestRegistry_HealthyOverflow(t *testing.T) {
 	checker := newMockHealthChecker()
 	reg := NewRegistry(checker)
 
-	cr := reg.(*clusterRegistry)
+	cr, ok := reg.(*clusterRegistry)
+	if !ok {
+		t.Fatal("expected *clusterRegistry")
+	}
 	cr.mu.Lock()
 	cr.clusters["healthy1"] = &ClusterEntry{Name: "healthy1", Priority: 2, Healthy: true}
 	cr.clusters["unhealthy"] = &ClusterEntry{Name: "unhealthy", Priority: 1, Healthy: false}
@@ -123,7 +131,10 @@ func TestRegistry_RunHealthChecks(t *testing.T) {
 	checker := newMockHealthChecker()
 	reg := NewRegistry(checker)
 
-	cr := reg.(*clusterRegistry)
+	cr, ok := reg.(*clusterRegistry)
+	if !ok {
+		t.Fatal("expected *clusterRegistry")
+	}
 	cr.mu.Lock()
 	cr.clusters["a"] = &ClusterEntry{
 		Name:    "a",
@@ -160,7 +171,10 @@ func TestRegistry_ConcurrentAccess(t *testing.T) {
 	checker := newMockHealthChecker()
 	reg := NewRegistry(checker)
 
-	cr := reg.(*clusterRegistry)
+	cr, ok := reg.(*clusterRegistry)
+	if !ok {
+		t.Fatal("expected *clusterRegistry")
+	}
 	cr.mu.Lock()
 	for i := 0; i < 10; i++ {
 		name := fmt.Sprintf("cluster-%d", i)

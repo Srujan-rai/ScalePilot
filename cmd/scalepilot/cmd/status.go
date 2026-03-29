@@ -45,7 +45,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "NAMESPACE\tNAME\tALGORITHM\tDEPLOYMENT\tPREDICTED\tACTIVE\tLAST TRAINED\tSTATUS")
+	_, _ = fmt.Fprintln(w, "NAMESPACE\tNAME\tALGORITHM\tDEPLOYMENT\tPREDICTED\tACTIVE\tLAST TRAINED\tSTATUS")
 
 	for _, p := range policies.Items {
 		predicted := "-"
@@ -62,7 +62,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		}
 		status := conditionStatus(p.Status.Conditions)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			p.Namespace, p.Name, p.Spec.Algorithm,
 			p.Spec.TargetDeployment.Name, predicted, active,
 			lastTrained, status)

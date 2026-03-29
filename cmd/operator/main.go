@@ -195,7 +195,9 @@ type metricQuerierAdapter struct {
 	inner promclient.MetricQuerier
 }
 
-func (a *metricQuerierAdapter) RangeQuery(ctx context.Context, query string, start, end time.Time, step time.Duration) ([]forecast.DataPoint, error) {
+func (a *metricQuerierAdapter) RangeQuery(
+	ctx context.Context, query string, start, end time.Time, step time.Duration,
+) ([]forecast.DataPoint, error) {
 	result, err := a.inner.RangeQuery(ctx, query, start, end, step)
 	if err != nil {
 		return nil, err

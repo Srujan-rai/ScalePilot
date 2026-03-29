@@ -39,10 +39,10 @@ func runClustersList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "FSO\tCLUSTER\tROLE\tHEALTHY\tREPLICAS\tPRIORITY\tLAST PROBE")
+	_, _ = fmt.Fprintln(w, "FSO\tCLUSTER\tROLE\tHEALTHY\tREPLICAS\tPRIORITY\tLAST PROBE")
 
 	for _, fso := range fsos.Items {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%s\n",
 			fso.Name, fso.Spec.PrimaryCluster.Name, "primary", "✓",
 			fso.Status.PrimaryReplicas, 0, "-")
 
@@ -63,7 +63,7 @@ func runClustersList(cmd *cobra.Command, args []string) error {
 				}
 			}
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%s\n",
 				fso.Name, overflow.Name, "overflow", healthStr,
 				overflow.Replicas, priority, lastProbe)
 		}

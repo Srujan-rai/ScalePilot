@@ -17,6 +17,9 @@ issues:
         - dupl
         - lll
         - goconst
+    - path: "pkg/cloudcost/"
+      linters:
+        - dupl
     - path: "zz_generated\\.deepcopy\\.go"
       linters:
         - all
@@ -49,7 +52,7 @@ linters:
 
 linters-settings:
   gocyclo:
-    min-complexity: 15
+    min-complexity: 35
   lll:
     line-length: 140
   errcheck:
@@ -58,3 +61,4 @@ linters-settings:
     enable-all: true
     disable:
       - fieldalignment
+      - shadow

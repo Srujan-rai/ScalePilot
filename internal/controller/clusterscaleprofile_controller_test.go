@@ -32,13 +32,12 @@ import (
 
 var _ = Describe("ClusterScaleProfile Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+		const resourceName = "test-profile"
 
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Name: resourceName,
 		}
 		clusterscaleprofile := &autoscalingv1alpha1.ClusterScaleProfile{}
 
@@ -48,17 +47,18 @@ var _ = Describe("ClusterScaleProfile Controller", func() {
 			if err != nil && errors.IsNotFound(err) {
 				resource := &autoscalingv1alpha1.ClusterScaleProfile{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+						Name: resourceName,
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: autoscalingv1alpha1.ClusterScaleProfileSpec{
+						MaxSurgePercent:        25,
+						DefaultCooldownSeconds: 60,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &autoscalingv1alpha1.ClusterScaleProfile{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -77,8 +77,10 @@ var _ = Describe("ClusterScaleProfile Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			var updated autoscalingv1alpha1.ClusterScaleProfile
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+			Expect(updated.Status.ActiveBlackout).To(BeFalse())
 		})
 	})
 })

@@ -32,13 +32,13 @@ import (
 
 var _ = Describe("ScalingBudget Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+		const resourceName = "test-budget"
 
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
 		scalingbudget := &autoscalingv1alpha1.ScalingBudget{}
 
@@ -51,14 +51,26 @@ var _ = Describe("ScalingBudget Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: autoscalingv1alpha1.ScalingBudgetSpec{
+						Namespace:           "production",
+						CeilingMillidollars: 100000,
+						CloudCost: autoscalingv1alpha1.CloudCostConfig{
+							Provider: autoscalingv1alpha1.CloudProviderAWS,
+							CredentialsSecretRef: autoscalingv1alpha1.SecretReference{
+								Name:      "aws-creds",
+								Namespace: "default",
+							},
+						},
+						BreachAction:            autoscalingv1alpha1.BreachActionDelay,
+						WarningThresholdPercent: 80,
+						PollIntervalMinutes:     5,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &autoscalingv1alpha1.ScalingBudget{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -77,8 +89,10 @@ var _ = Describe("ScalingBudget Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			var updated autoscalingv1alpha1.ScalingBudget
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+			Expect(updated.Status.LastCheckedAt).NotTo(BeNil())
 		})
 	})
 })

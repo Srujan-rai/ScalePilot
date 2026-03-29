@@ -62,7 +62,7 @@ func validateFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	decoder := yaml.NewYAMLOrJSONDecoder(f, 4096)
 	var raw map[string]interface{}

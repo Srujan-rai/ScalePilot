@@ -39,7 +39,7 @@ func runBudgetStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "NAMESPACE\tNAME\tPROVIDER\tCEILING\tSPEND\tUTILIZATION\tBREACHED\tACTION\tBLOCKED")
+	_, _ = fmt.Fprintln(w, "NAMESPACE\tNAME\tPROVIDER\tCEILING\tSPEND\tUTILIZATION\tBREACHED\tACTION\tBLOCKED")
 
 	for _, b := range budgets.Items {
 		ceiling := formatMillidollars(b.Spec.CeilingMillidollars)
@@ -48,7 +48,7 @@ func runBudgetStatus(cmd *cobra.Command, args []string) error {
 		if b.Status.Breached {
 			breachedStr = "YES"
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d%%\t%s\t%s\t%d\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d%%\t%s\t%s\t%d\n",
 			b.Spec.Namespace, b.Name,
 			b.Spec.CloudCost.Provider,
 			ceiling, spend,

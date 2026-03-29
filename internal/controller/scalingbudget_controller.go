@@ -84,7 +84,7 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Info("no CostQuerierFactory configured, using current status values")
 		costData = &cloudcost.CostData{
 			CurrentSpendMillidollars: budget.Status.CurrentSpendMillidollars,
-			FetchedAt:               now,
+			FetchedAt:                now,
 		}
 	}
 

@@ -30,15 +30,17 @@ import (
 	autoscalingv1alpha1 "github.com/srujan-rai/scalepilot/api/v1alpha1"
 )
 
+func int32Ptr(v int32) *int32 { return &v }
+
 var _ = Describe("FederatedScaledObject Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+		const resourceName = "test-federation"
 
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
 		federatedscaledobject := &autoscalingv1alpha1.FederatedScaledObject{}
 
@@ -51,14 +53,42 @@ var _ = Describe("FederatedScaledObject Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: autoscalingv1alpha1.FederatedScaledObjectSpec{
+						PrimaryCluster: autoscalingv1alpha1.ClusterRef{
+							Name: "primary",
+							SecretRef: autoscalingv1alpha1.SecretReference{
+								Name:      "primary-kubeconfig",
+								Namespace: "default",
+							},
+						},
+						OverflowClusters: []autoscalingv1alpha1.ClusterRef{
+							{
+								Name: "overflow-1",
+								SecretRef: autoscalingv1alpha1.SecretReference{
+									Name:      "overflow-kubeconfig",
+									Namespace: "default",
+								},
+								MaxCapacity: int32Ptr(10),
+								Priority:    1,
+							},
+						},
+						Metric: autoscalingv1alpha1.SpilloverMetric{
+							Query:             "kube_deployment_status_replicas",
+							PrometheusAddress: "http://prometheus:9090",
+							ThresholdValue:    "50",
+						},
+						Workload: autoscalingv1alpha1.WorkloadTemplate{
+							DeploymentName: "worker",
+							Namespace:      "default",
+						},
+						CooldownSeconds: 60,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &autoscalingv1alpha1.FederatedScaledObject{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -77,8 +107,6 @@ var _ = Describe("FederatedScaledObject Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })

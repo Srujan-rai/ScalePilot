@@ -32,13 +32,13 @@ import (
 
 var _ = Describe("ForecastPolicy Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+		const resourceName = "test-forecast"
 
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Namespace: "default",
 		}
 		forecastpolicy := &autoscalingv1alpha1.ForecastPolicy{}
 
@@ -51,14 +51,24 @@ var _ = Describe("ForecastPolicy Controller", func() {
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: autoscalingv1alpha1.ForecastPolicySpec{
+						TargetDeployment: autoscalingv1alpha1.TargetDeploymentRef{Name: "web-app"},
+						TargetHPA:        autoscalingv1alpha1.TargetHPARef{Name: "web-app-hpa"},
+						MetricSource: autoscalingv1alpha1.PrometheusMetricSource{
+							Address:         "http://prometheus:9090",
+							Query:           "rate(http_requests_total[5m])",
+							HistoryDuration: "7d",
+						},
+						Algorithm:              autoscalingv1alpha1.ForecastAlgorithmARIMA,
+						LeadTimeMinutes:        5,
+						RetrainIntervalMinutes: 30,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &autoscalingv1alpha1.ForecastPolicy{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -77,8 +87,6 @@ var _ = Describe("ForecastPolicy Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })

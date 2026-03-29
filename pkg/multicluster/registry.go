@@ -14,15 +14,15 @@ import (
 
 // ClusterEntry holds a controller-runtime client and metadata for a single cluster.
 type ClusterEntry struct {
-	Name         string
-	Client       client.Client
-	Config       *rest.Config
-	Healthy      bool
-	LastProbe    time.Time
-	LastError    error
-	Namespace    string // default target namespace for this cluster
-	MaxCapacity  *int32
-	Priority     int32
+	Name        string
+	Client      client.Client
+	Config      *rest.Config
+	Healthy     bool
+	LastProbe   time.Time
+	LastError   error
+	Namespace   string // default target namespace for this cluster
+	MaxCapacity *int32
+	Priority    int32
 }
 
 // HealthChecker tests whether a cluster's API server is reachable.

@@ -57,9 +57,9 @@ type ForecasterFactory func(spec autoscalingv1alpha1.ForecastPolicySpec) (foreca
 //  4. Patches HPA minReplicas if a spike is predicted
 type ForecastPolicyReconciler struct {
 	client.Client
-	Scheme             *runtime.Scheme
-	Clock              Clock
-	ForecasterFactory  ForecasterFactory
+	Scheme               *runtime.Scheme
+	Clock                Clock
+	ForecasterFactory    ForecasterFactory
 	MetricQuerierFactory func(address string) (MetricQuerier, error)
 }
 
