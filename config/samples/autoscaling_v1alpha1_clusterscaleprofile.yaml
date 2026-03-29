@@ -1,0 +1,32 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ClusterScaleProfile
+metadata:
+  name: default
+spec:
+  maxSurgePercent: 25
+  defaultCooldownSeconds: 60
+  enableGlobalDryRun: false
+  blackoutWindows:
+    - name: maintenance-friday
+      start: "0 22 * * 5"     # Friday 10pm
+      end: "0 6 * * 6"        # Saturday 6am
+      timezone: America/New_York
+    - name: deploy-freeze-eom
+      start: "0 0 28 * *"     # 28th of every month
+      end: "0 0 1 * *"        # 1st of next month
+      timezone: UTC
+  teamOverrides:
+    - teamName: platform-team
+      namespaces:
+        - platform
+        - infrastructure
+      maxSurgePercent: 50
+      maxReplicasPerDeployment: 100
+    - teamName: app-team
+      namespaces:
+        - production
+        - staging
+      maxSurgePercent: 25
+      allowedAlgorithms:
+        - ARIMA
+      maxReplicasPerDeployment: 50

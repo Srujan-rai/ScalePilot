@@ -1,0 +1,23 @@
+# permissions for end users to view scalingbudgets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: scalepilot
+    app.kubernetes.io/managed-by: kustomize
+  name: scalingbudget-viewer-role
+rules:
+- apiGroups:
+  - autoscaling.scalepilot.io
+  resources:
+  - scalingbudgets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling.scalepilot.io
+  resources:
+  - scalingbudgets/status
+  verbs:
+  - get

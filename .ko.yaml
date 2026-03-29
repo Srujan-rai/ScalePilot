@@ -1,0 +1,6 @@
+defaultBaseImage: gcr.io/distroless/static:nonroot
+builds:
+  - id: operator
+    main: ./cmd/operator/
+  - id: scalepilot-cli
+    main: ./cmd/scalepilot/

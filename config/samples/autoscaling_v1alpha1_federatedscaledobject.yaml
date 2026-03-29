@@ -1,0 +1,33 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: FederatedScaledObject
+metadata:
+  name: order-processor-federation
+  namespace: production
+spec:
+  primaryCluster:
+    name: us-east-1
+    secretRef:
+      name: cluster-us-east-1
+      namespace: scalepilot-system
+  overflowClusters:
+    - name: eu-west-1
+      secretRef:
+        name: cluster-eu-west-1
+        namespace: scalepilot-system
+      maxCapacity: 20
+      priority: 1
+    - name: ap-south-1
+      secretRef:
+        name: cluster-ap-south-1
+        namespace: scalepilot-system
+      maxCapacity: 10
+      priority: 2
+  metric:
+    query: 'sum(kube_deployment_status_replicas{deployment="order-processor"})'
+    prometheusAddress: http://prometheus.monitoring:9090
+    thresholdValue: "50"
+  workload:
+    deploymentName: order-processor
+    namespace: production
+  cooldownSeconds: 120
+  maxTotalReplicas: 80

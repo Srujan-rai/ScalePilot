@@ -1,0 +1,63 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "scalepilot.fullname" . }}-manager
+  labels:
+    {{- include "scalepilot.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["autoscaling.scalepilot.io"]
+    resources:
+      - forecastpolicies
+      - federatedscaledobjects
+      - scalingbudgets
+      - clusterscaleprofiles
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling.scalepilot.io"]
+    resources:
+      - forecastpolicies/status
+      - federatedscaledobjects/status
+      - scalingbudgets/status
+      - clusterscaleprofiles/status
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["autoscaling.scalepilot.io"]
+    resources:
+      - forecastpolicies/finalizers
+      - federatedscaledobjects/finalizers
+      - scalingbudgets/finalizers
+      - clusterscaleprofiles/finalizers
+    verbs: ["update"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "scalepilot.fullname" . }}-manager
+  labels:
+    {{- include "scalepilot.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "scalepilot.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "scalepilot.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

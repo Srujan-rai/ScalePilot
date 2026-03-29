@@ -1,0 +1,23 @@
+# permissions for end users to view federatedscaledobjects.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: scalepilot
+    app.kubernetes.io/managed-by: kustomize
+  name: federatedscaledobject-viewer-role
+rules:
+- apiGroups:
+  - autoscaling.scalepilot.io
+  resources:
+  - federatedscaledobjects
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - autoscaling.scalepilot.io
+  resources:
+  - federatedscaledobjects/status
+  verbs:
+  - get

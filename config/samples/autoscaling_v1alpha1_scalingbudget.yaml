@@ -1,0 +1,24 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ScalingBudget
+metadata:
+  name: production-budget
+  namespace: scalepilot-system
+spec:
+  namespace: production
+  ceilingMillidollars: 150000  # $150.00/month
+  cloudCost:
+    provider: AWS
+    credentialsSecretRef:
+      name: aws-cost-explorer-creds
+      namespace: scalepilot-system
+    region: us-east-1
+  breachAction: Delay
+  warningThresholdPercent: 80
+  notifications:
+    slack:
+      webhookURL: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX
+      channel: "#finops-alerts"
+    pagerDuty:
+      routingKey: your-pagerduty-routing-key
+      severity: warning
+  pollIntervalMinutes: 5

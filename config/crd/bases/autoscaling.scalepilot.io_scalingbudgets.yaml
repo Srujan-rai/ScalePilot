@@ -1,0 +1,286 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.14.0
+  name: scalingbudgets.autoscaling.scalepilot.io
+spec:
+  group: autoscaling.scalepilot.io
+  names:
+    kind: ScalingBudget
+    listKind: ScalingBudgetList
+    plural: scalingbudgets
+    singular: scalingbudget
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.namespace
+      name: Namespace
+      type: string
+    - jsonPath: .spec.cloudCost.provider
+      name: Provider
+      type: string
+    - description: Cost utilization %
+      jsonPath: .status.utilizationPercent
+      name: Utilization
+      type: integer
+    - jsonPath: .status.breached
+      name: Breached
+      type: boolean
+    - jsonPath: .spec.breachAction
+      name: Action
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ScalingBudget defines a namespace-scoped cost ceiling that intercepts
+          scale decisions and enforces FinOps budget controls with cloud billing
+          API integration.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ScalingBudgetSpec defines the desired state of ScalingBudget.
+            properties:
+              breachAction:
+                default: Delay
+                description: BreachAction specifies what happens when spend exceeds
+                  the ceiling.
+                enum:
+                - Downgrade
+                - Delay
+                - Block
+                type: string
+              ceilingMillidollars:
+                description: |-
+                  CeilingMillidollars is the monthly cost ceiling in thousandths of a dollar.
+                  Using integer millidollars avoids floating-point rounding (e.g. $150.00 = 150000).
+                format: int64
+                minimum: 1
+                type: integer
+              cloudCost:
+                description: CloudCost configures the cloud billing API integration.
+                properties:
+                  accountId:
+                    description: AccountID is the cloud account/project ID to query
+                      costs for.
+                    type: string
+                  credentialsSecretRef:
+                    description: |-
+                      CredentialsSecretRef points to a Secret containing cloud API credentials.
+                      AWS: keys aws_access_key_id, aws_secret_access_key
+                      GCP: key service_account_json
+                      Azure: keys tenant_id, client_id, client_secret, subscription_id
+                    properties:
+                      name:
+                        description: Name of the Secret.
+                        minLength: 1
+                        type: string
+                      namespace:
+                        description: Namespace of the Secret.
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  provider:
+                    description: Provider selects the cloud billing API.
+                    enum:
+                    - AWS
+                    - GCP
+                    - Azure
+                    type: string
+                  region:
+                    description: Region filters cost data to a specific cloud region.
+                    type: string
+                required:
+                - credentialsSecretRef
+                - provider
+                type: object
+              namespace:
+                description: Namespace scopes the budget to a single Kubernetes namespace.
+                minLength: 1
+                type: string
+              notifications:
+                description: Notifications configures where breach/warning alerts
+                  are sent.
+                properties:
+                  pagerDuty:
+                    description: PagerDuty configures PagerDuty event notifications.
+                    properties:
+                      routingKey:
+                        description: RoutingKey is the PagerDuty Events API v2 routing
+                          key.
+                        minLength: 1
+                        type: string
+                      severity:
+                        default: warning
+                        description: Severity is the PagerDuty alert severity.
+                        enum:
+                        - critical
+                        - error
+                        - warning
+                        - info
+                        type: string
+                    required:
+                    - routingKey
+                    - severity
+                    type: object
+                  slack:
+                    description: Slack configures Slack webhook notifications.
+                    properties:
+                      channel:
+                        description: Channel overrides the default channel for the
+                          webhook.
+                        type: string
+                      webhookURL:
+                        description: WebhookURL is the Slack incoming webhook URL.
+                        minLength: 1
+                        type: string
+                    required:
+                    - webhookURL
+                    type: object
+                type: object
+              pollIntervalMinutes:
+                default: 5
+                description: PollIntervalMinutes is how often to re-check cloud cost
+                  APIs.
+                minimum: 1
+                type: integer
+              warningThresholdPercent:
+                default: 80
+                description: |-
+                  WarningThresholdPercent triggers a warning notification at this
+                  percentage of the ceiling (e.g. 80 means alert at 80% spend).
+                maximum: 100
+                minimum: 1
+                type: integer
+            required:
+            - breachAction
+            - ceilingMillidollars
+            - cloudCost
+            - namespace
+            - pollIntervalMinutes
+            - warningThresholdPercent
+            type: object
+          status:
+            description: ScalingBudgetStatus defines the observed state of ScalingBudget.
+            properties:
+              blockedScaleEvents:
+                description: |-
+                  BlockedScaleEvents counts how many scale-up requests were
+                  blocked or delayed due to budget breach.
+                format: int32
+                type: integer
+              breached:
+                description: Breached is true when current spend exceeds the ceiling.
+                type: boolean
+              conditions:
+                description: Conditions represent the latest available observations.
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource.\n---\nThis struct is intended for
+                    direct use as an array at the field path .status.conditions.  For
+                    example,\n\n\n\ttype FooStatus struct{\n\t    // Represents the
+                    observations of a foo's current state.\n\t    // Known .status.conditions.type
+                    are: \"Available\", \"Progressing\", and \"Degraded\"\n\t    //
+                    +patchMergeKey=type\n\t    // +patchStrategy=merge\n\t    // +listType=map\n\t
+                    \   // +listMapKey=type\n\t    Conditions []metav1.Condition `json:\"conditions,omitempty\"
+                    patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"`\n\n\n\t
+                    \   // other fields\n\t}"
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: |-
+                        type of condition in CamelCase or in foo.example.com/CamelCase.
+                        ---
+                        Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be
+                        useful (see .node.status.conditions), the ability to deconflict is important.
+                        The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              currentSpendMillidollars:
+                description: CurrentSpendMillidollars is the current month's spend
+                  in millidollars.
+                format: int64
+                type: integer
+              lastCheckedAt:
+                description: LastCheckedAt is the timestamp of the last cost API poll.
+                format: date-time
+                type: string
+              utilizationPercent:
+                description: UtilizationPercent is CurrentSpend / Ceiling * 100.
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

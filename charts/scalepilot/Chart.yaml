@@ -1,0 +1,18 @@
+apiVersion: v2
+name: scalepilot
+description: ScalePilot - Predictive autoscaling, multi-cluster federation & FinOps for Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - autoscaling
+  - operator
+  - forecasting
+  - finops
+  - multi-cluster
+home: https://github.com/srujan-rai/scalepilot
+sources:
+  - https://github.com/srujan-rai/scalepilot
+maintainers:
+  - name: srujan-rai

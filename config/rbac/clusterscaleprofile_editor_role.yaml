@@ -1,0 +1,27 @@
+# permissions for end users to edit clusterscaleprofiles.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: scalepilot
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterscaleprofile-editor-role
+rules:
+- apiGroups:
+  - autoscaling.scalepilot.io
+  resources:
+  - clusterscaleprofiles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - autoscaling.scalepilot.io
+  resources:
+  - clusterscaleprofiles/status
+  verbs:
+  - get

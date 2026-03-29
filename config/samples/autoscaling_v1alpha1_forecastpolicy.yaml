@@ -1,0 +1,24 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ForecastPolicy
+metadata:
+  name: web-frontend-forecast
+  namespace: production
+spec:
+  targetDeployment:
+    name: web-frontend
+  targetHPA:
+    name: web-frontend-hpa
+  metricSource:
+    address: http://prometheus.monitoring:9090
+    query: 'sum(rate(http_requests_total{deployment="web-frontend"}[5m]))'
+    historyDuration: "7d"
+    stepInterval: "5m"
+  algorithm: ARIMA
+  arimaParams:
+    p: 2
+    d: 1
+    q: 1
+  leadTimeMinutes: 5
+  retrainIntervalMinutes: 30
+  maxReplicaCap: 50
+  dryRun: false
