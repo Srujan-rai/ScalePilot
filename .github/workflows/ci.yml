@@ -24,7 +24,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64.8
+          version: v2.4.0
 
   test:
     name: Unit & Integration Tests
@@ -88,6 +88,31 @@ jobs:
             git diff
             exit 1
           fi
+
+  helm-lint:
+    name: Helm Chart Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Helm lint
+        run: helm lint charts/scalepilot
+
+      - name: Helm template (dry-run render)
+        run: helm template scalepilot charts/scalepilot --debug
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2
+
+      - name: Run chart-testing lint
+        run: ct lint --charts charts/scalepilot --validate-maintainers=false
 
   ko-build:
     name: ko Build (dry run)

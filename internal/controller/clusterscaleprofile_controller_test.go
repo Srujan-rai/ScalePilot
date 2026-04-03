@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,7 +32,7 @@ import (
 )
 
 var _ = Describe("ClusterScaleProfile Controller", func() {
-	Context("When reconciling a resource", func() {
+	Context("When reconciling a basic profile", func() {
 		const resourceName = "test-profile"
 
 		ctx := context.Background()
@@ -66,8 +67,118 @@ var _ = Describe("ClusterScaleProfile Controller", func() {
 			By("Cleanup the specific resource instance ClusterScaleProfile")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
+
+		It("should set status fields correctly with no blackout windows", func() {
+			controllerReconciler := &ClusterScaleProfileReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			result, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+
+			var updated autoscalingv1alpha1.ClusterScaleProfile
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+
+			Expect(updated.Status.ActiveBlackout).To(BeFalse())
+			Expect(updated.Status.ActiveBlackoutName).To(BeEmpty())
+			Expect(updated.Status.TeamsConfigured).To(Equal(int32(0)))
+			Expect(updated.Status.LastReconcileTime).NotTo(BeNil())
+			Expect(updated.Status.Conditions).NotTo(BeEmpty())
+
+			readyCond := findCondition(updated.Status.Conditions, "Ready")
+			Expect(readyCond).NotTo(BeNil())
+			Expect(readyCond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(readyCond.Reason).To(Equal("Reconciled"))
+		})
+	})
+
+	Context("When reconciling a profile with team overrides", func() {
+		const resourceName = "test-profile-teams"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name: resourceName,
+		}
+
+		BeforeEach(func() {
+			resource := &autoscalingv1alpha1.ClusterScaleProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: resourceName,
+				},
+				Spec: autoscalingv1alpha1.ClusterScaleProfileSpec{
+					MaxSurgePercent:        25,
+					DefaultCooldownSeconds: 60,
+					TeamOverrides: []autoscalingv1alpha1.TeamOverride{
+						{TeamName: "platform", Namespaces: []string{"platform-ns"}},
+						{TeamName: "data-eng", Namespaces: []string{"data-ns", "batch-ns"}},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &autoscalingv1alpha1.ClusterScaleProfile{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+		})
+
+		It("should count teams correctly", func() {
+			controllerReconciler := &ClusterScaleProfileReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			var updated autoscalingv1alpha1.ClusterScaleProfile
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+			Expect(updated.Status.TeamsConfigured).To(Equal(int32(2)))
+		})
+	})
+
+	Context("When reconciling a profile with global dry-run", func() {
+		const resourceName = "test-profile-dryrun"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name: resourceName,
+		}
+
+		BeforeEach(func() {
+			resource := &autoscalingv1alpha1.ClusterScaleProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: resourceName,
+				},
+				Spec: autoscalingv1alpha1.ClusterScaleProfileSpec{
+					MaxSurgePercent:        25,
+					DefaultCooldownSeconds: 60,
+					EnableGlobalDryRun:     true,
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &autoscalingv1alpha1.ClusterScaleProfile{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+		})
+
+		It("should reconcile successfully with dry-run enabled", func() {
 			controllerReconciler := &ClusterScaleProfileReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
@@ -84,3 +195,12 @@ var _ = Describe("ClusterScaleProfile Controller", func() {
 		})
 	})
 })
+
+func findCondition(conditions []metav1.Condition, condType string) *metav1.Condition {
+	for i := range conditions {
+		if conditions[i].Type == condType {
+			return &conditions[i]
+		}
+	}
+	return nil
+}

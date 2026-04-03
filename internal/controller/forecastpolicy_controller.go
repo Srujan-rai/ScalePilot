@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -61,6 +62,11 @@ type ForecastPolicyReconciler struct {
 	Clock                Clock
 	ForecasterFactory    ForecasterFactory
 	MetricQuerierFactory func(address string) (MetricQuerier, error)
+
+	// trainMu and training guard against overlapping trainModelAsync goroutines
+	// for the same policy while a run is still in flight.
+	trainMu     sync.Mutex
+	trainingNow map[string]struct{}
 }
 
 //+kubebuilder:rbac:groups=autoscaling.scalepilot.io,resources=forecastpolicies,verbs=get;list;watch;create;update;patch;delete
@@ -91,8 +97,27 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		now.Sub(policy.Status.LastTrainedAt.Time) > time.Duration(policy.Spec.RetrainIntervalMinutes)*time.Minute
 
 	if needsRetrain {
-		go r.trainModelAsync(context.Background(), policy)
-		logger.Info("triggered background model retraining")
+		key := req.String()
+		r.trainMu.Lock()
+		if r.trainingNow == nil {
+			r.trainingNow = make(map[string]struct{})
+		}
+		if _, busy := r.trainingNow[key]; !busy {
+			r.trainingNow[key] = struct{}{}
+			policyCopy := policy.DeepCopy()
+			r.trainMu.Unlock()
+			go func() {
+				defer func() {
+					r.trainMu.Lock()
+					delete(r.trainingNow, key)
+					r.trainMu.Unlock()
+				}()
+				r.trainModelAsync(context.Background(), *policyCopy)
+			}()
+			logger.Info("triggered background model retraining")
+		} else {
+			r.trainMu.Unlock()
+		}
 	}
 
 	// Load the cached model from ConfigMap.
@@ -174,8 +199,21 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		currentMin = *hpa.Spec.MinReplicas
 	}
 
+	// Check cluster-wide scaling policy (blackouts, global dry-run).
+	guard := &ScaleGuard{Reader: r.Client}
+	scalePolicy := guard.Check(ctx)
+
+	dryRun := policy.Spec.DryRun || scalePolicy.GlobalDryRun
+	suppressReason := scalePolicy.ShouldSuppress()
+
+	if suppressReason != "" {
+		logger.Info("scaling suppressed by ClusterScaleProfile",
+			"reason", suppressReason,
+			"predictedReplicas", predictedReplicas)
+	}
+
 	// Patch HPA minReplicas if the prediction suggests a higher value.
-	if predictedReplicas > currentMin && !policy.Spec.DryRun {
+	if predictedReplicas > currentMin && !dryRun && !scalePolicy.Blocked {
 		hpa.Spec.MinReplicas = &predictedReplicas
 		if err := r.Update(ctx, &hpa); err != nil {
 			return ctrl.Result{}, fmt.Errorf("patching HPA %s minReplicas: %w", hpaKey, err)
@@ -185,11 +223,12 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			"from", currentMin,
 			"to", predictedReplicas,
 			"leadTimeMinutes", policy.Spec.LeadTimeMinutes)
-	} else if policy.Spec.DryRun {
-		logger.Info("[DRY RUN] would patch HPA minReplicas",
+	} else if dryRun || scalePolicy.Blocked {
+		logger.Info("[DRY RUN / BLACKOUT] would patch HPA minReplicas",
 			"hpa", hpaKey,
 			"from", currentMin,
-			"to", predictedReplicas)
+			"to", predictedReplicas,
+			"reason", suppressReason)
 	}
 
 	// Update status.

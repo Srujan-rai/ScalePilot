@@ -35,14 +35,18 @@ import (
 // CostQuerierFactory builds a CostQuerier from a ScalingBudget's cloud config.
 type CostQuerierFactory func(config autoscalingv1alpha1.CloudCostConfig) (cloudcost.CostQuerier, error)
 
+// NotificationSenderFactory builds webhook senders from a budget's notification config.
+type NotificationSenderFactory func(nc *autoscalingv1alpha1.NotificationConfig) []webhook.Sender
+
 // ScalingBudgetReconciler reconciles a ScalingBudget object.
 // It polls cloud cost APIs, computes utilization, and enforces breach actions.
 type ScalingBudgetReconciler struct {
 	client.Client
-	Scheme              *runtime.Scheme
-	Clock               Clock
-	CostQuerierFactory  CostQuerierFactory
-	NotificationSenders []webhook.Sender
+	Scheme                    *runtime.Scheme
+	Clock                     Clock
+	CostQuerierFactory        CostQuerierFactory
+	NotificationSenders       []webhook.Sender
+	NotificationSenderFactory NotificationSenderFactory
 }
 
 //+kubebuilder:rbac:groups=autoscaling.scalepilot.io,resources=scalingbudgets,verbs=get;list;watch;create;update;patch;delete
@@ -97,6 +101,11 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	breached := spend >= ceiling
 
+	// Check cluster-wide scaling policy. During blackouts, skip breach
+	// enforcement since scaling is already suppressed cluster-wide.
+	guard := &ScaleGuard{Reader: r.Client}
+	scalePolicy := guard.Check(ctx)
+
 	wasBelowWarning := budget.Status.UtilizationPercent < budget.Spec.WarningThresholdPercent
 	wasNotBreached := !budget.Status.Breached
 
@@ -120,16 +129,20 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Handle breach.
 	if breached && wasNotBreached {
+		actionNote := string(budget.Spec.BreachAction)
+		if reason := scalePolicy.ShouldSuppress(); reason != "" {
+			actionNote += " (deferred: " + reason + ")"
+		}
 		logger.Info("budget ceiling BREACHED",
 			"namespace", budget.Spec.Namespace,
 			"spend", spend,
 			"ceiling", ceiling,
-			"action", budget.Spec.BreachAction)
+			"action", actionNote)
 		r.sendNotification(ctx, budget, webhook.SeverityCritical,
 			"Budget Breached",
 			fmt.Sprintf("Namespace %s exceeded its $%.2f ceiling (current: $%.2f). Action: %s",
 				budget.Spec.Namespace, float64(ceiling)/1000.0,
-				float64(spend)/1000.0, budget.Spec.BreachAction))
+				float64(spend)/1000.0, actionNote))
 	}
 
 	// Set conditions.
@@ -208,9 +221,19 @@ func (r *ScalingBudgetReconciler) sendNotification(ctx context.Context, budget a
 		Timestamp: time.Now(),
 	}
 
+	// Send via globally-configured senders (backward compat).
 	for _, sender := range r.NotificationSenders {
 		if err := sender.Send(ctx, alert); err != nil {
 			logger.Error(err, "failed to send notification", "sender", sender.Name())
+		}
+	}
+
+	// Send via per-budget notification config.
+	if r.NotificationSenderFactory != nil {
+		for _, sender := range r.NotificationSenderFactory(budget.Spec.Notifications) {
+			if err := sender.Send(ctx, alert); err != nil {
+				logger.Error(err, "failed to send notification", "sender", sender.Name())
+			}
 		}
 	}
 }

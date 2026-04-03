@@ -1,0 +1,64 @@
+run:
+  timeout: 5m
+  allow-parallel-runners: true
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    - path: "api/*"
+      linters:
+        - lll
+    - path: "internal/*"
+      linters:
+        - dupl
+        - lll
+    - path: "_test\\.go"
+      linters:
+        - dupl
+        - lll
+        - goconst
+    - path: "pkg/cloudcost/"
+      linters:
+        - dupl
+    - path: "zz_generated\\.deepcopy\\.go"
+      linters:
+        - all
+
+linters:
+  disable-all: true
+  enable:
+    - dupl
+    - errcheck
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - nilerr
+    - bodyclose
+    - errname
+    - errorlint
+
+linters-settings:
+  gocyclo:
+    min-complexity: 35
+  lll:
+    line-length: 140
+  errcheck:
+    check-type-assertions: true
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+      - shadow

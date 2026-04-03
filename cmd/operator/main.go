@@ -20,12 +20,15 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,9 +39,11 @@ import (
 
 	autoscalingv1alpha1 "github.com/srujan-rai/scalepilot/api/v1alpha1"
 	"github.com/srujan-rai/scalepilot/internal/controller"
+	"github.com/srujan-rai/scalepilot/pkg/cloudcost"
 	"github.com/srujan-rai/scalepilot/pkg/forecast"
 	"github.com/srujan-rai/scalepilot/pkg/multicluster"
 	promclient "github.com/srujan-rai/scalepilot/pkg/prometheus"
+	webhookpkg "github.com/srujan-rai/scalepilot/pkg/webhook"
 )
 
 var (
@@ -134,6 +139,26 @@ func main() {
 		return &metricQuerierAdapter{inner: q}, nil
 	}
 
+	// CostQuerier factory: reads cloud credentials from a Secret and creates
+	// the appropriate cloud cost adapter (AWS/GCP/Azure), wrapped with a cache.
+	costQuerierFactory := buildCostQuerierFactory(mgr)
+
+	// NotificationSender factory: builds Slack/PagerDuty senders from
+	// a ScalingBudget's notification config.
+	notificationFactory := func(nc *autoscalingv1alpha1.NotificationConfig) []webhookpkg.Sender {
+		if nc == nil {
+			return nil
+		}
+		var senders []webhookpkg.Sender
+		if nc.Slack != nil {
+			senders = append(senders, webhookpkg.NewSlackSender(nc.Slack.WebhookURL, nc.Slack.Channel))
+		}
+		if nc.PagerDuty != nil {
+			senders = append(senders, webhookpkg.NewPagerDutySender(nc.PagerDuty.RoutingKey, nc.PagerDuty.Severity))
+		}
+		return senders
+	}
+
 	// Register controllers.
 	if err = (&controller.ClusterScaleProfileReconciler{
 		Client: mgr.GetClient(),
@@ -154,8 +179,10 @@ func main() {
 	}
 
 	if err = (&controller.ScalingBudgetReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                    mgr.GetClient(),
+		Scheme:                    mgr.GetScheme(),
+		CostQuerierFactory:        costQuerierFactory,
+		NotificationSenderFactory: notificationFactory,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ScalingBudget")
 		os.Exit(1)
@@ -170,6 +197,29 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "FederatedScaledObject")
 		os.Exit(1)
 	}
+
+	// Register validating webhooks for all CRDs.
+	if err = (&autoscalingv1alpha1.ForecastPolicyValidator{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ForecastPolicy")
+		os.Exit(1)
+	}
+	if err = (&autoscalingv1alpha1.FederatedScaledObjectValidator{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "FederatedScaledObject")
+		os.Exit(1)
+	}
+	if err = (&autoscalingv1alpha1.ScalingBudgetValidator{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ScalingBudget")
+		os.Exit(1)
+	}
+	if err = (&autoscalingv1alpha1.ClusterScaleProfileValidator{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ClusterScaleProfile")
+		os.Exit(1)
+	}
+
+	// Register the breach-block webhook that enforces the Block breach action
+	// by rejecting Deployment/HPA scale-ups in breached namespaces.
+	breachHandler := controller.NewBreachBlockWebhook(mgr.GetClient(), mgr.GetScheme())
+	mgr.GetWebhookServer().Register("/validate-scale-block", &webhook.Admission{Handler: breachHandler})
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -207,4 +257,57 @@ func (a *metricQuerierAdapter) RangeQuery(
 
 func (a *metricQuerierAdapter) InstantQuery(ctx context.Context, query string) (float64, error) {
 	return a.inner.InstantQuery(ctx, query)
+}
+
+// buildCostQuerierFactory creates a CostQuerierFactory closure that reads cloud
+// credentials from Kubernetes Secrets and constructs the appropriate cost adapter.
+func buildCostQuerierFactory(mgr ctrl.Manager) controller.CostQuerierFactory {
+	return func(config autoscalingv1alpha1.CloudCostConfig) (cloudcost.CostQuerier, error) {
+		k8sClient := mgr.GetClient()
+
+		var secret corev1.Secret
+		secretKey := types.NamespacedName{
+			Name:      config.CredentialsSecretRef.Name,
+			Namespace: config.CredentialsSecretRef.Namespace,
+		}
+		if err := k8sClient.Get(context.Background(), secretKey, &secret); err != nil {
+			return nil, fmt.Errorf("reading credentials Secret %s: %w", secretKey, err)
+		}
+
+		var (
+			querier   cloudcost.CostQuerier
+			createErr error
+		)
+		switch config.Provider {
+		case autoscalingv1alpha1.CloudProviderAWS:
+			querier = cloudcost.NewAWSQuerier(cloudcost.AWSConfig{
+				AccessKeyID:     string(secret.Data["aws_access_key_id"]),
+				SecretAccessKey: string(secret.Data["aws_secret_access_key"]),
+				Region:          config.Region,
+				AccountID:       config.AccountID,
+			})
+		case autoscalingv1alpha1.CloudProviderGCP:
+			querier, createErr = cloudcost.NewGCPQuerier(cloudcost.GCPConfig{
+				ServiceAccountJSON: string(secret.Data["service_account_json"]),
+				ProjectID:          config.AccountID,
+			})
+			if createErr != nil {
+				return nil, fmt.Errorf("creating GCP querier: %w", createErr)
+			}
+		case autoscalingv1alpha1.CloudProviderAzure:
+			querier, createErr = cloudcost.NewAzureQuerier(cloudcost.AzureConfig{
+				TenantID:       string(secret.Data["tenant_id"]),
+				ClientID:       string(secret.Data["client_id"]),
+				ClientSecret:   string(secret.Data["client_secret"]),
+				SubscriptionID: string(secret.Data["subscription_id"]),
+			})
+			if createErr != nil {
+				return nil, fmt.Errorf("creating Azure querier: %w", createErr)
+			}
+		default:
+			return nil, fmt.Errorf("unsupported cloud provider: %s", config.Provider)
+		}
+
+		return cloudcost.NewCachedQuerier(querier, 5*time.Minute), nil
+	}
 }

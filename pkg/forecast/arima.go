@@ -263,7 +263,7 @@ func yuleWalker(data []float64, p int) []float64 {
 	coeffs := make([]float64, p)
 	coeffsPrev := make([]float64, p)
 	coeffs[0] = acf[1] / acf[0]
-	var errVar float64 = acf[0] * (1 - coeffs[0]*coeffs[0])
+	errVar := acf[0] * (1 - coeffs[0]*coeffs[0])
 
 	for m := 1; m < p; m++ {
 		copy(coeffsPrev, coeffs)

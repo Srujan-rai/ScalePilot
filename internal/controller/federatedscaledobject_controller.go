@@ -110,8 +110,19 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
+	// Check cluster-wide scaling policy (blackouts, global dry-run).
+	guard := &ScaleGuard{Reader: r.Client}
+	scalePolicy := guard.Check(ctx)
+
+	if reason := scalePolicy.ShouldSuppress(); reason != "" {
+		logger.Info("spillover suppressed by ClusterScaleProfile",
+			"reason", reason,
+			"metric", currentValue,
+			"threshold", threshold)
+	}
+
 	// Determine if spillover is needed.
-	spilloverNeeded := currentValue > threshold
+	spilloverNeeded := currentValue > threshold && !scalePolicy.Blocked && !scalePolicy.GlobalDryRun
 
 	// Check cooldown — prevent thrashing.
 	inCooldown := false

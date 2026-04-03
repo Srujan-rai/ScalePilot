@@ -18,20 +18,20 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	autoscalingv1alpha1 "github.com/srujan-rai/scalepilot/api/v1alpha1"
 )
 
 var _ = Describe("ForecastPolicy Controller", func() {
-	Context("When reconciling a resource", func() {
+	Context("When reconciling without a trained model", func() {
 		const resourceName = "test-forecast"
 
 		ctx := context.Background()
@@ -76,8 +76,77 @@ var _ = Describe("ForecastPolicy Controller", func() {
 			By("Cleanup the specific resource instance ForecastPolicy")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
+
+		It("should set ModelNotReady condition when no ConfigMap exists", func() {
+			controllerReconciler := &ForecastPolicyReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			result, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
+
+			var updated autoscalingv1alpha1.ForecastPolicy
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+
+			errCond := findCondition(updated.Status.Conditions, string(autoscalingv1alpha1.ForecastConditionError))
+			Expect(errCond).NotTo(BeNil())
+			Expect(errCond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(errCond.Reason).To(Equal("ModelNotReady"))
+		})
+	})
+
+	Context("When reconciling a dry-run ForecastPolicy", func() {
+		const resourceName = "test-forecast-dryrun"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: "default",
+		}
+
+		BeforeEach(func() {
+			resource := &autoscalingv1alpha1.ForecastPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: "default",
+				},
+				Spec: autoscalingv1alpha1.ForecastPolicySpec{
+					TargetDeployment: autoscalingv1alpha1.TargetDeploymentRef{Name: "web-dry"},
+					TargetHPA:        autoscalingv1alpha1.TargetHPARef{Name: "web-dry-hpa"},
+					MetricSource: autoscalingv1alpha1.PrometheusMetricSource{
+						Address:         "http://prometheus:9090",
+						Query:           "rate(http_requests_total[5m])",
+						HistoryDuration: "7d",
+					},
+					Algorithm:              autoscalingv1alpha1.ForecastAlgorithmHoltWinters,
+					LeadTimeMinutes:        5,
+					RetrainIntervalMinutes: 30,
+					DryRun:                 true,
+					HoltWintersParams: &autoscalingv1alpha1.HoltWintersParams{
+						Alpha:           "0.3",
+						Beta:            "0.1",
+						Gamma:           "0.2",
+						SeasonalPeriods: 24,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &autoscalingv1alpha1.ForecastPolicy{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+		})
+
+		It("should not error on reconcile and set ModelNotReady since no model exists", func() {
 			controllerReconciler := &ForecastPolicyReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
@@ -87,6 +156,14 @@ var _ = Describe("ForecastPolicy Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
+
+			var updated autoscalingv1alpha1.ForecastPolicy
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+
+			errCond := findCondition(updated.Status.Conditions, string(autoscalingv1alpha1.ForecastConditionError))
+			Expect(errCond).NotTo(BeNil())
+			Expect(errCond.Status).To(Equal(metav1.ConditionTrue))
+			Expect(errCond.Reason).To(Equal("ModelNotReady"))
 		})
 	})
 })
