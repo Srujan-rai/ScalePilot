@@ -31,5 +31,23 @@ go.work.sum
 bin/
 
 # Editor/IDE
-# .idea/
-# .vscode/
+dist/
+tmp/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.idea/
+.vscode/
+
+# Local tooling caches
+.cache/
+.golangci-lint/
+
+# Kubernetes/kustomize rendered outputs (if generated locally)
+*.rendered.yaml
