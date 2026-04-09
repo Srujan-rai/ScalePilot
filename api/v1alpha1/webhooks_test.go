@@ -91,6 +91,41 @@ func TestValidateForecastPolicy_InvalidPrometheusAddress(t *testing.T) {
 	}
 }
 
+func TestValidateForecastPolicy_InvalidTargetMetricValuePerReplica(t *testing.T) {
+	for _, tc := range []string{"0", "-1", "x", "inf"} {
+		fp := &ForecastPolicy{
+			Spec: ForecastPolicySpec{
+				Algorithm:                   ForecastAlgorithmARIMA,
+				ARIMAParams:                 &ARIMAParams{P: 1, D: 1, Q: 1},
+				MetricSource:                PrometheusMetricSource{Address: "http://prom:9090", Query: "up", HistoryDuration: "7d"},
+				TargetMetricValuePerReplica: tc,
+			},
+		}
+		errs := validateForecastPolicy(fp)
+		if len(errs) != 1 {
+			t.Fatalf("target %q: expected 1 error, got %d: %v", tc, len(errs), errs)
+		}
+		if errs[0].Field != "spec.targetMetricValuePerReplica" {
+			t.Errorf("field = %s", errs[0].Field)
+		}
+	}
+}
+
+func TestValidateForecastPolicy_ValidTargetMetricValuePerReplica(t *testing.T) {
+	fp := &ForecastPolicy{
+		Spec: ForecastPolicySpec{
+			Algorithm:                   ForecastAlgorithmARIMA,
+			ARIMAParams:                 &ARIMAParams{P: 1, D: 1, Q: 1},
+			MetricSource:                PrometheusMetricSource{Address: "http://prom:9090", Query: "up", HistoryDuration: "7d"},
+			TargetMetricValuePerReplica: "0.5",
+		},
+	}
+	errs := validateForecastPolicy(fp)
+	if len(errs) != 0 {
+		t.Fatalf("expected 0 errors, got %v", errs)
+	}
+}
+
 func TestValidateFederatedScaledObject_InvalidThreshold(t *testing.T) {
 	fso := &FederatedScaledObject{
 		Spec: FederatedScaledObjectSpec{

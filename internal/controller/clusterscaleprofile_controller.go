@@ -208,7 +208,7 @@ func setCondition(conditions *[]metav1.Condition, condition metav1.Condition) {
 	}
 	for i, existing := range *conditions {
 		if existing.Type == condition.Type {
-			if existing.Status != condition.Status {
+			if existing.Status != condition.Status || existing.Reason != condition.Reason || existing.Message != condition.Message {
 				condition.LastTransitionTime = metav1.NewTime(time.Now())
 			} else {
 				condition.LastTransitionTime = existing.LastTransitionTime

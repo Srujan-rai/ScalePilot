@@ -1,0 +1,32 @@
+# Use with operator on your machine (make run): Prometheus reachable via port-forward.
+#   kubectl port-forward -n monitoring svc/prometheus 9090:9090
+#
+# For an in-cluster operator, set metricSource.address to http://prometheus.monitoring:9090 instead.
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ForecastPolicy
+metadata:
+  name: web-frontend-forecast
+  namespace: production
+spec:
+  targetDeployment:
+    name: web-frontend
+  targetHPA:
+    name: web-frontend-hpa
+  metricSource:
+    address: http://127.0.0.1:9090
+    query: 'sum(rate(http_requests_total{deployment="web-frontend"}[5m]))'
+    # ARIMA(1,0,0) needs ≥11 samples; 1m steps on a brand-new series often yield only a few points.
+    # Shorter step + longer window fills the matrix faster once rate() is valid (~6–10m after scrape UP).
+    historyDuration: "6h"
+    stepInterval: "15s"
+  algorithm: ARIMA
+  arimaParams:
+    p: 1
+    d: 0
+    q: 0
+  leadTimeMinutes: 5
+  retrainIntervalMinutes: 5
+  maxReplicaCap: 50
+  targetMetricValuePerReplica: "100"
+  useUpperConfidenceBound: false
+  dryRun: true

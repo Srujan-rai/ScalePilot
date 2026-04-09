@@ -120,7 +120,27 @@ func runSimulate(cmd *cobra.Command, args []string) error {
 			forecastResult.ConfidenceLower[i].Value,
 			forecastResult.ConfidenceUpper[i].Value)
 	}
-	return w.Flush()
+	if err := w.Flush(); err != nil {
+		return err
+	}
+
+	peak := forecast.PeakOverHorizon(forecastResult, policy.Spec.UseUpperConfidenceBound)
+	bound := "point"
+	if policy.Spec.UseUpperConfidenceBound {
+		bound = "upper_95"
+	}
+	replicas, err := forecast.ReplicasFromForecastPeak(
+		peak,
+		policy.Spec.TargetMetricValuePerReplica,
+		policy.Spec.MaxReplicaCap,
+	)
+	if err != nil {
+		return fmt.Errorf("replica mapping: %w", err)
+	}
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(),
+		"\nPeak (%s)=%.4f  implied minReplicas=%d (targetMetricValuePerReplica=%q)\n",
+		bound, peak, replicas, policy.Spec.TargetMetricValuePerReplica)
+	return nil
 }
 
 // parseDuration converts a shorthand duration like "7d" or "24h" to time.Duration.

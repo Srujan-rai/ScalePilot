@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"sync"
 	"time"
@@ -68,6 +67,10 @@ type ForecastPolicyReconciler struct {
 	trainMu     sync.Mutex
 	trainingNow map[string]struct{}
 }
+
+// reasonTrainingFailed is the Error condition reason when async training fails
+// (distinct from ModelNotReady so we do not overwrite the message on requeue).
+const reasonTrainingFailed = "TrainingFailed"
 
 //+kubebuilder:rbac:groups=autoscaling.scalepilot.io,resources=forecastpolicies,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=autoscaling.scalepilot.io,resources=forecastpolicies/status,verbs=get;update;patch
@@ -125,6 +128,16 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	var cm corev1.ConfigMap
 	if err := r.Get(ctx, types.NamespacedName{Name: cmName, Namespace: policy.Namespace}, &cm); err != nil {
 		if errors.IsNotFound(err) {
+			// Preserve a prior TrainingFailed status message instead of replacing it
+			// with generic ModelNotReady on every requeue.
+			for i := range policy.Status.Conditions {
+				c := policy.Status.Conditions[i]
+				if c.Type == string(autoscalingv1alpha1.ForecastConditionError) && c.Reason == reasonTrainingFailed {
+					logger.Info("model ConfigMap missing after training failure; will retry",
+						"configmap", cmName, "message", c.Message)
+					return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+				}
+			}
 			logger.Info("model ConfigMap not found, waiting for training to complete", "configmap", cmName)
 			return r.updateStatusError(ctx, &policy, "ModelNotReady", "waiting for initial model training"), nil
 		}
@@ -165,26 +178,16 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return r.updateStatusError(ctx, &policy, "PredictionFailed", err.Error()), nil
 	}
 
-	// Determine the peak predicted value within the lead-time horizon.
-	peakValue := 0.0
-	for _, dp := range result.PredictedValues {
-		if dp.Value > peakValue {
-			peakValue = dp.Value
-		}
-	}
+	// Peak over lead window: point forecast or upper confidence bound.
+	peakValue := forecast.PeakOverHorizon(result, policy.Spec.UseUpperConfidenceBound)
 
-	// Convert the peak metric value to a replica count.
-	// We use a simple heuristic: predicted_replicas = ceil(predicted_value / current_per_replica_value).
-	// For a more accurate mapping, the user should configure their HPA metric thresholds to match.
-	predictedReplicas := int32(math.Ceil(peakValue))
-	if predictedReplicas < 1 {
-		predictedReplicas = 1
-	}
-
-	// Apply the max replica cap if configured.
-	if policy.Spec.MaxReplicaCap != nil && predictedReplicas > *policy.Spec.MaxReplicaCap {
-		logger.Info("capping predicted replicas", "predicted", predictedReplicas, "cap", *policy.Spec.MaxReplicaCap)
-		predictedReplicas = *policy.Spec.MaxReplicaCap
+	predictedReplicas, err := forecast.ReplicasFromForecastPeak(
+		peakValue,
+		policy.Spec.TargetMetricValuePerReplica,
+		policy.Spec.MaxReplicaCap,
+	)
+	if err != nil {
+		return r.updateStatusError(ctx, &policy, "InvalidConfig", err.Error()), nil
 	}
 
 	// Fetch the target HPA.
@@ -276,11 +279,19 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
+// trainingFetchTimeout bounds Prometheus range queries and model fitting so a
+// stuck network call cannot leave trainingNow locked forever (no more training).
+const trainingFetchTimeout = 5 * time.Minute
+
 // trainModelAsync fetches metric history from Prometheus, trains the forecast
 // model, and writes the serialized parameters to a ConfigMap. This runs in a
 // background goroutine so the reconcile loop never blocks on training.
 func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy autoscalingv1alpha1.ForecastPolicy) {
 	logger := ctrl.Log.WithName("trainer").WithValues("policy", policy.Name, "namespace", policy.Namespace)
+	policyKey := types.NamespacedName{Name: policy.Name, Namespace: policy.Namespace}
+
+	ctx, cancel := context.WithTimeout(ctx, trainingFetchTimeout)
+	defer cancel()
 
 	factory := r.ForecasterFactory
 	if factory == nil {
@@ -290,18 +301,22 @@ func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy a
 	forecaster, err := factory(policy.Spec)
 	if err != nil {
 		logger.Error(err, "failed to create forecaster")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("forecaster: %v", err))
 		return
 	}
 
 	mqFactory := r.MetricQuerierFactory
 	if mqFactory == nil {
-		logger.Error(fmt.Errorf("no MetricQuerierFactory configured"), "cannot fetch training data")
+		err := fmt.Errorf("no MetricQuerierFactory configured")
+		logger.Error(err, "cannot fetch training data")
+		r.reportTrainingFailure(policyKey, err.Error())
 		return
 	}
 
 	querier, err := mqFactory(policy.Spec.MetricSource.Address)
 	if err != nil {
 		logger.Error(err, "failed to create metric querier")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("prometheus client: %v", err))
 		return
 	}
 
@@ -316,18 +331,21 @@ func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy a
 		now.Add(-historyDur), now, stepInterval)
 	if err != nil {
 		logger.Error(err, "failed to query prometheus for training data")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("prometheus range query: %v", err))
 		return
 	}
 
 	params, err := forecaster.Train(ctx, data)
 	if err != nil {
 		logger.Error(err, "failed to train model")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("train: %v", err))
 		return
 	}
 
 	paramsJSON, err := json.Marshal(params)
 	if err != nil {
 		logger.Error(err, "failed to serialize model params")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("serialize model: %v", err))
 		return
 	}
 
@@ -353,21 +371,50 @@ func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy a
 			}
 			if err := r.Create(ctx, &cm); err != nil {
 				logger.Error(err, "failed to create model ConfigMap")
+				r.reportTrainingFailure(policyKey, fmt.Sprintf("create ConfigMap: %v", err))
 				return
 			}
 			logger.Info("created model ConfigMap", "configmap", cmName, "rmse", params.RMSE)
 			return
 		}
 		logger.Error(err, "failed to fetch model ConfigMap")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("get ConfigMap: %v", err))
 		return
 	}
 
 	cm.Data["model"] = string(paramsJSON)
 	if err := r.Update(ctx, &cm); err != nil {
 		logger.Error(err, "failed to update model ConfigMap")
+		r.reportTrainingFailure(policyKey, fmt.Sprintf("update ConfigMap: %v", err))
 		return
 	}
 	logger.Info("updated model ConfigMap", "configmap", cmName, "rmse", params.RMSE)
+}
+
+// reportTrainingFailure writes a ForecastPolicy status error so kubectl users
+// see why training did not produce a model (not only controller logs).
+func (r *ForecastPolicyReconciler) reportTrainingFailure(key types.NamespacedName, message string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	var pol autoscalingv1alpha1.ForecastPolicy
+	if err := r.Get(ctx, key, &pol); err != nil {
+		ctrl.Log.Error(err, "reportTrainingFailure: get ForecastPolicy", "key", key)
+		return
+	}
+	nowMeta := metav1.NewTime(time.Now())
+	errCondition := metav1.Condition{
+		Type:               string(autoscalingv1alpha1.ForecastConditionError),
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: pol.Generation,
+		LastTransitionTime: nowMeta,
+		Reason:             reasonTrainingFailed,
+		Message:            message,
+	}
+	setCondition(&pol.Status.Conditions, errCondition)
+	if err := r.Status().Update(ctx, &pol); err != nil {
+		ctrl.Log.Error(err, "reportTrainingFailure: status update", "key", key)
+	}
 }
 
 func (r *ForecastPolicyReconciler) updateStatusError(ctx context.Context, policy *autoscalingv1alpha1.ForecastPolicy, reason, message string) ctrl.Result {

@@ -485,7 +485,13 @@ make install
 make run
 ```
 
-2. **Create a ForecastPolicy to predictively scale a deployment:**
+2. **Create sample namespaces and CRs** (uses kustomize so `kustomization.yaml` is not sent to the API as a resource):
+
+```bash
+kubectl apply -k config/samples/
+```
+
+Or apply a single sample (create namespaces first: `kubectl create ns production` if needed):
 
 ```bash
 kubectl apply -f config/samples/autoscaling_v1alpha1_forecastpolicy.yaml
@@ -508,6 +514,8 @@ kubectl get forecastpolicies -o wide
   --horizon 1h \
   --step 5m
 ```
+
+5. **End-to-end on Minikube with Prometheus** (demo Deployment, metrics, port-forward, ForecastPolicy that trains): [hack/minikube-demo/README.md](hack/minikube-demo/README.md).
 
 ---
 

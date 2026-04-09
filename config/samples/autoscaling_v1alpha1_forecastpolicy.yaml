@@ -21,4 +21,7 @@ spec:
   leadTimeMinutes: 5
   retrainIntervalMinutes: 30
   maxReplicaCap: 50
+  # RPS each replica can serve; replicas = ceil(peak_forecast_rps / this value)
+  targetMetricValuePerReplica: "100"
+  useUpperConfidenceBound: false
   dryRun: false

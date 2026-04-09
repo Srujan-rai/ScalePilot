@@ -16,6 +16,9 @@ endif
 # tools. (i.e. podman)
 CONTAINER_TOOL ?= docker
 
+# Local webhook TLS (controller-runtime default: /tmp/k8s-webhook-server/serving-certs/{tls.crt,tls.key})
+WEBHOOK_CERT_DIR ?= /tmp/k8s-webhook-server/serving-certs
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -82,8 +85,16 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/operator/main.go
 
+.PHONY: webhook-certs
+webhook-certs: ## Self-signed TLS for local webhook server (required for make run with webhooks).
+	mkdir -p "$(WEBHOOK_CERT_DIR)"
+	@test -f "$(WEBHOOK_CERT_DIR)/tls.crt" && test -f "$(WEBHOOK_CERT_DIR)/tls.key" || \
+		openssl req -x509 -newkey rsa:2048 \
+			-keyout "$(WEBHOOK_CERT_DIR)/tls.key" -out "$(WEBHOOK_CERT_DIR)/tls.crt" \
+			-days 365 -nodes -subj "/CN=localhost"
+
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate fmt vet webhook-certs ## Run a controller from your host.
 	go run ./cmd/operator/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.

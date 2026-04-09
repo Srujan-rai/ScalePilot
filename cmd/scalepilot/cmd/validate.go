@@ -3,8 +3,10 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -123,6 +125,12 @@ func validateForecastPolicy(p *autoscalingv1alpha1.ForecastPolicy) error {
 	}
 	if p.Spec.MetricSource.Query == "" {
 		return fmt.Errorf("metricSource.query is required")
+	}
+	if s := strings.TrimSpace(p.Spec.TargetMetricValuePerReplica); s != "" {
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil || v <= 0 || math.IsNaN(v) || math.IsInf(v, 0) {
+			return fmt.Errorf("targetMetricValuePerReplica must be a positive finite number")
+		}
 	}
 	return nil
 }

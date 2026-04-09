@@ -89,13 +89,17 @@ var _ = Describe("ForecastPolicy Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.RequeueAfter).To(Equal(30 * time.Second))
 
-			var updated autoscalingv1alpha1.ForecastPolicy
-			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
-
-			errCond := findCondition(updated.Status.Conditions, string(autoscalingv1alpha1.ForecastConditionError))
-			Expect(errCond).NotTo(BeNil())
-			Expect(errCond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(errCond.Reason).To(Equal("ModelNotReady"))
+			Eventually(func(g Gomega) {
+				var updated autoscalingv1alpha1.ForecastPolicy
+				g.Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+				errCond := findCondition(updated.Status.Conditions, string(autoscalingv1alpha1.ForecastConditionError))
+				g.Expect(errCond).NotTo(BeNil())
+				g.Expect(errCond.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(errCond.Reason).To(Or(
+					Equal("ModelNotReady"),
+					Equal(reasonTrainingFailed),
+				))
+			}).WithTimeout(5 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
 		})
 	})
 
@@ -146,7 +150,7 @@ var _ = Describe("ForecastPolicy Controller", func() {
 			}
 		})
 
-		It("should not error on reconcile and set ModelNotReady since no model exists", func() {
+		It("should not error on reconcile and surface an error until a model exists", func() {
 			controllerReconciler := &ForecastPolicyReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
@@ -157,13 +161,19 @@ var _ = Describe("ForecastPolicy Controller", func() {
 			})
 			Expect(err).NotTo(HaveOccurred())
 
-			var updated autoscalingv1alpha1.ForecastPolicy
-			Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
-
-			errCond := findCondition(updated.Status.Conditions, string(autoscalingv1alpha1.ForecastConditionError))
-			Expect(errCond).NotTo(BeNil())
-			Expect(errCond.Status).To(Equal(metav1.ConditionTrue))
-			Expect(errCond.Reason).To(Equal("ModelNotReady"))
+			// Async training runs without MetricQuerierFactory and reports TrainingFailed;
+			// or the reconcile path may briefly set ModelNotReady first.
+			Eventually(func(g Gomega) {
+				var updated autoscalingv1alpha1.ForecastPolicy
+				g.Expect(k8sClient.Get(ctx, typeNamespacedName, &updated)).To(Succeed())
+				errCond := findCondition(updated.Status.Conditions, string(autoscalingv1alpha1.ForecastConditionError))
+				g.Expect(errCond).NotTo(BeNil())
+				g.Expect(errCond.Status).To(Equal(metav1.ConditionTrue))
+				g.Expect(errCond.Reason).To(Or(
+					Equal("ModelNotReady"),
+					Equal(reasonTrainingFailed),
+				))
+			}).WithTimeout(5 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
 		})
 	})
 })

@@ -151,6 +151,20 @@ type ForecastPolicySpec struct {
 	// +kubebuilder:default=false
 	// +optional
 	DryRun bool `json:"dryRun,omitempty"`
+
+	// TargetMetricValuePerReplica is how much of the forecast metric each replica
+	// is expected to handle (same units as MetricSource.Query). When set to a
+	// positive decimal string, desired replicas = ceil(peakForecast / value),
+	// matching HPA averageValue-style thinking. When empty, legacy behavior applies:
+	// ceil(peakForecast) — only valid if the query already returns replica-equivalent units.
+	// +optional
+	TargetMetricValuePerReplica string `json:"targetMetricValuePerReplica,omitempty"`
+
+	// UseUpperConfidenceBound, when true, uses the 95% upper forecast bound instead
+	// of the point forecast when taking the peak over the lead-time window (more conservative).
+	// +kubebuilder:default=false
+	// +optional
+	UseUpperConfidenceBound bool `json:"useUpperConfidenceBound,omitempty"`
 }
 
 // ForecastConditionType represents the state of a forecast policy.

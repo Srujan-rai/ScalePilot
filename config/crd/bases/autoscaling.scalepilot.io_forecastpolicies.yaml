@@ -201,6 +201,20 @@ spec:
                 required:
                 - name
                 type: object
+              targetMetricValuePerReplica:
+                description: |-
+                  TargetMetricValuePerReplica is how much of the forecast metric each replica
+                  is expected to handle (same units as MetricSource.Query). When set to a
+                  positive decimal string, desired replicas = ceil(peakForecast / value),
+                  matching HPA averageValue-style thinking. When empty, legacy behavior applies:
+                  ceil(peakForecast) — only valid if the query already returns replica-equivalent units.
+                type: string
+              useUpperConfidenceBound:
+                default: false
+                description: |-
+                  UseUpperConfidenceBound, when true, uses the 95% upper forecast bound instead
+                  of the point forecast when taking the peak over the lead-time window (more conservative).
+                type: boolean
             required:
             - algorithm
             - leadTimeMinutes

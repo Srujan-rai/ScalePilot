@@ -257,6 +257,7 @@ spec:
     q: 1
   leadTimeMinutes: 5
   retrainIntervalMinutes: 30
+  targetMetricValuePerReplica: "10"
   dryRun: true
 `, policyName, testNS)
 

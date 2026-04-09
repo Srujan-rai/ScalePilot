@@ -1,5 +1,6 @@
 ## Append samples of your project ##
 resources:
+- namespaces.yaml
 - autoscaling_v1alpha1_forecastpolicy.yaml
 - autoscaling_v1alpha1_federatedscaledobject.yaml
 - autoscaling_v1alpha1_scalingbudget.yaml

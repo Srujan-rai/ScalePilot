@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -88,6 +89,17 @@ func validateForecastPolicy(fp *ForecastPolicy) field.ErrorList {
 			fp.Spec.MetricSource.Address,
 			"must start with http:// or https://",
 		))
+	}
+
+	if s := strings.TrimSpace(fp.Spec.TargetMetricValuePerReplica); s != "" {
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil || v <= 0 || math.IsNaN(v) || math.IsInf(v, 0) {
+			errs = append(errs, field.Invalid(
+				specPath.Child("targetMetricValuePerReplica"),
+				fp.Spec.TargetMetricValuePerReplica,
+				"must be a positive finite decimal number",
+			))
+		}
 	}
 
 	return errs
