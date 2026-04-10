@@ -41,6 +41,12 @@ tolerations: []
 affinity: {}
 
 podAnnotations: {}
+
+# Optional PrometheusRule (install prometheus-operator CRD in the cluster).
+prometheusRule:
+  enabled: false
+  additionalLabels: {}
+
 podSecurityContext:
   runAsNonRoot: true
   seccompProfile:

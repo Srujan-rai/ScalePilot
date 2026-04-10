@@ -25,3 +25,7 @@ spec:
   targetMetricValuePerReplica: "100"
   useUpperConfidenceBound: false
   dryRun: false
+  # Optional SLO-style gate: skip raising HPA minReplicas when instant query > max (address defaults to metricSource.address).
+  # scaleUpGuard:
+  #   query: 'sum(rate(http_requests_total{status=~"5.."}[5m]))'
+  #   maxMetricValue: "10"

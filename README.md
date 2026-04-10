@@ -21,6 +21,7 @@ ScalePilot extends HPA and KEDA with three capabilities that don't exist anywher
   - [ClusterScaleProfile](#4-clusterscaleprofile)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
+  - [GKE and cluster capacity](#gke-and-cluster-capacity)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
 - [CLI Reference](#cli-reference)
@@ -151,7 +152,31 @@ spec:
   # Safety
   maxReplicaCap: 50             # never set minReplicas above 50
   dryRun: false                 # set true to log without patching
+
+  # Optional: block pre-scale when an SLO metric is hot (reuses metricSource.address if address omitted)
+  # scaleUpGuard:
+  #   query: 'sum(rate(http_requests_total{status=~"5.."}[5m]))'
+  #   maxMetricValue: "50"
 ```
+
+**KEDA, in-cluster Prometheus, metrics:** ForecastPolicy targets an `autoscaling/v2` HorizontalPodAutoscaler—the same resource KEDA manages when you use a `ScaledObject`. Set `metricSource.address` to an in-cluster Prometheus URL (for example `http://prometheus.monitoring.svc:9090`). The operator exposes Prometheus counters on the controller manager metrics bind address (see Helm `metrics.enabled` / `metrics.port`).
+
+**ForecastPolicy metrics (`result` label):**
+
+| Metric | `result` values | Meaning |
+|--------|-----------------|--------|
+| `scalepilot_forecastpolicy_training_total` | `success`, `failure` | Background model train wrote ConfigMap vs reported `TrainingFailed` |
+| `scalepilot_forecastpolicy_hpa_minreplicas_patch_total` | `applied`, `skipped_dry_run`, `skipped_profile`, `skipped_guard` | HPA minReplicas raise applied vs skipped (policy dry-run, `ClusterScaleProfile`, or `scaleUpGuard`) |
+
+**`scaleUpGuard` fields** (all optional except query and maxMetricValue when the object is set; validated by the CRD webhook):
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `address` | No | Prometheus base URL; if empty, uses `metricSource.address` |
+| `query` | Yes | Instant PromQL returning a scalar |
+| `maxMetricValue` | Yes | If instant value is **strictly greater** than this number, the reconciler does not raise `minReplicas` (condition `PatchApplied` / reason `ScaleUpGuardBlocked`) |
+
+**Helm alerting:** set `prometheusRule.enabled: true` to create a `monitoring.coreos.com/v1` `PrometheusRule` (requires prometheus-operator in the cluster). Optional `prometheusRule.additionalLabels` are merged onto that object.
 
 **Status fields (`kubectl get forecastpolicy`):**
 
@@ -180,6 +205,9 @@ spec:
 | `retrainIntervalMinutes` | int | No | 30 | How often to retrain the model |
 | `maxReplicaCap` | int | No | - | Ceiling for forecast-driven minReplicas |
 | `dryRun` | bool | No | false | Log predictions without patching |
+| `targetMetricValuePerReplica` | string | No | - | Forecast metric budget per replica; replicas ≈ ceil(peak / value) |
+| `useUpperConfidenceBound` | bool | No | false | Use upper confidence bound for peak instead of point forecast |
+| `scaleUpGuard` | object | No | - | Optional instant PromQL guard: skip raising minReplicas when value > `maxMetricValue` |
 
 ---
 

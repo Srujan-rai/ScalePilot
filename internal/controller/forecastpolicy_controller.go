@@ -21,22 +21,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	autoscalingv1 "k8s.io/api/autoscaling/v1"
-
 	autoscalingv1alpha1 "github.com/srujan-rai/scalepilot/api/v1alpha1"
 	"github.com/srujan-rai/scalepilot/pkg/forecast"
+	scalepilotmetrics "github.com/srujan-rai/scalepilot/pkg/metrics"
 )
 
 // MetricQuerier is the interface the ForecastPolicy reconciler uses to
@@ -61,6 +63,7 @@ type ForecastPolicyReconciler struct {
 	Clock                Clock
 	ForecasterFactory    ForecasterFactory
 	MetricQuerierFactory func(address string) (MetricQuerier, error)
+	Recorder             record.EventRecorder
 
 	// trainMu and training guard against overlapping trainModelAsync goroutines
 	// for the same policy while a run is still in flight.
@@ -78,6 +81,7 @@ const reasonTrainingFailed = "TrainingFailed"
 //+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile loads the cached forecast model, runs prediction, and patches
 // the target HPA's minReplicas ahead of predicted traffic spikes.
@@ -190,8 +194,8 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return r.updateStatusError(ctx, &policy, "InvalidConfig", err.Error()), nil
 	}
 
-	// Fetch the target HPA.
-	var hpa autoscalingv1.HorizontalPodAutoscaler
+	// Fetch the target HPA (autoscaling/v2 — matches modern clusters and KEDA-managed HPAs).
+	var hpa autoscalingv2.HorizontalPodAutoscaler
 	hpaKey := types.NamespacedName{Name: policy.Spec.TargetHPA.Name, Namespace: policy.Namespace}
 	if err := r.Get(ctx, hpaKey, &hpa); err != nil {
 		return r.updateStatusError(ctx, &policy, "HPANotFound", fmt.Sprintf("HPA %s not found: %v", hpaKey, err)), nil
@@ -215,23 +219,56 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			"predictedReplicas", predictedReplicas)
 	}
 
-	// Patch HPA minReplicas if the prediction suggests a higher value.
-	if predictedReplicas > currentMin && !dryRun && !scalePolicy.Blocked {
+	wantRaise := predictedReplicas > currentMin
+	skipRaise := ""
+	var guardDetail string
+	if wantRaise && dryRun {
+		skipRaise = "dry_run"
+	} else if wantRaise && scalePolicy.Blocked {
+		skipRaise = "profile"
+	} else if wantRaise && policy.Spec.ScaleUpGuard != nil {
+		allow, _, msg, err := r.evaluateScaleUpGuard(ctx, &policy)
+		if err != nil {
+			return r.updateStatusError(ctx, &policy, "ScaleUpGuardError", err.Error()), nil
+		}
+		if !allow {
+			skipRaise = "guard"
+			guardDetail = msg
+			logger.Info("scale-up blocked by scaleUpGuard", "detail", msg)
+		}
+	}
+
+	if wantRaise && skipRaise == "" {
 		hpa.Spec.MinReplicas = &predictedReplicas
 		if err := r.Update(ctx, &hpa); err != nil {
 			return ctrl.Result{}, fmt.Errorf("patching HPA %s minReplicas: %w", hpaKey, err)
+		}
+		scalepilotmetrics.ForecastHPAPatchesTotal.WithLabelValues("applied").Inc()
+		if r.Recorder != nil {
+			r.Recorder.Eventf(&policy, corev1.EventTypeNormal, "HPAMinReplicasPatched",
+				"Set HPA %s/%s minReplicas from %d to %d (predicted peak %.2f)",
+				hpaKey.Namespace, hpaKey.Name, currentMin, predictedReplicas, peakValue)
 		}
 		logger.Info("patched HPA minReplicas",
 			"hpa", hpaKey,
 			"from", currentMin,
 			"to", predictedReplicas,
 			"leadTimeMinutes", policy.Spec.LeadTimeMinutes)
-	} else if dryRun || scalePolicy.Blocked {
-		logger.Info("[DRY RUN / BLACKOUT] would patch HPA minReplicas",
+	} else if wantRaise {
+		switch skipRaise {
+		case "dry_run":
+			scalepilotmetrics.ForecastHPAPatchesTotal.WithLabelValues("skipped_dry_run").Inc()
+		case "profile":
+			scalepilotmetrics.ForecastHPAPatchesTotal.WithLabelValues("skipped_profile").Inc()
+		case "guard":
+			scalepilotmetrics.ForecastHPAPatchesTotal.WithLabelValues("skipped_guard").Inc()
+		}
+		logger.Info("skipped raising HPA minReplicas",
 			"hpa", hpaKey,
 			"from", currentMin,
 			"to", predictedReplicas,
-			"reason", suppressReason)
+			"skip", skipRaise,
+			"profileReason", suppressReason)
 	}
 
 	// Update status.
@@ -258,11 +295,24 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		ObservedGeneration: policy.Generation,
 		LastTransitionTime: nowMeta,
 	}
-	if predictedReplicas > currentMin {
+	switch {
+	case wantRaise && skipRaise == "":
 		patchCondition.Status = metav1.ConditionTrue
 		patchCondition.Reason = "Patched"
 		patchCondition.Message = fmt.Sprintf("HPA minReplicas set to %d (was %d)", predictedReplicas, currentMin)
-	} else {
+	case wantRaise && skipRaise == "guard":
+		patchCondition.Status = metav1.ConditionFalse
+		patchCondition.Reason = "ScaleUpGuardBlocked"
+		patchCondition.Message = guardDetail
+	case wantRaise && skipRaise == "dry_run":
+		patchCondition.Status = metav1.ConditionFalse
+		patchCondition.Reason = "DryRun"
+		patchCondition.Message = fmt.Sprintf("Would set minReplicas to %d (current %d)", predictedReplicas, currentMin)
+	case wantRaise && skipRaise == "profile":
+		patchCondition.Status = metav1.ConditionFalse
+		patchCondition.Reason = "ScalingSuppressed"
+		patchCondition.Message = fmt.Sprintf("Would set minReplicas to %d; suppressed: %s", predictedReplicas, suppressReason)
+	default:
 		patchCondition.Status = metav1.ConditionFalse
 		patchCondition.Reason = "NoChangeNeeded"
 		patchCondition.Message = fmt.Sprintf("Current minReplicas %d is sufficient", currentMin)
@@ -375,6 +425,11 @@ func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy a
 				return
 			}
 			logger.Info("created model ConfigMap", "configmap", cmName, "rmse", params.RMSE)
+			if r.Recorder != nil {
+				r.Recorder.Eventf(&policy, corev1.EventTypeNormal, "ModelTrained",
+					"Trained %s; wrote ConfigMap %s (RMSE=%.4f)", forecaster.Name(), cmName, params.RMSE)
+			}
+			scalepilotmetrics.ForecastTrainingTotal.WithLabelValues("success").Inc()
 			return
 		}
 		logger.Error(err, "failed to fetch model ConfigMap")
@@ -389,6 +444,11 @@ func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy a
 		return
 	}
 	logger.Info("updated model ConfigMap", "configmap", cmName, "rmse", params.RMSE)
+	if r.Recorder != nil {
+		r.Recorder.Eventf(&policy, corev1.EventTypeNormal, "ModelRetrained",
+			"Retrained %s; updated ConfigMap %s (RMSE=%.4f)", forecaster.Name(), cmName, params.RMSE)
+	}
+	scalepilotmetrics.ForecastTrainingTotal.WithLabelValues("success").Inc()
 }
 
 // reportTrainingFailure writes a ForecastPolicy status error so kubectl users
@@ -414,6 +474,11 @@ func (r *ForecastPolicyReconciler) reportTrainingFailure(key types.NamespacedNam
 	setCondition(&pol.Status.Conditions, errCondition)
 	if err := r.Status().Update(ctx, &pol); err != nil {
 		ctrl.Log.Error(err, "reportTrainingFailure: status update", "key", key)
+		return
+	}
+	scalepilotmetrics.ForecastTrainingTotal.WithLabelValues("failure").Inc()
+	if r.Recorder != nil {
+		r.Recorder.Eventf(&pol, corev1.EventTypeWarning, reasonTrainingFailed, "%s", message)
 	}
 }
 
@@ -447,6 +512,37 @@ func (r *ForecastPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func modelConfigMapName(policyName string) string {
 	return fmt.Sprintf("scalepilot-model-%s", policyName)
+}
+
+// evaluateScaleUpGuard returns allow=false when the instant query is strictly greater than maxMetricValue.
+func (r *ForecastPolicyReconciler) evaluateScaleUpGuard(ctx context.Context, policy *autoscalingv1alpha1.ForecastPolicy) (allow bool, value float64, detail string, err error) {
+	g := policy.Spec.ScaleUpGuard
+	if g == nil {
+		return true, 0, "", nil
+	}
+	if r.MetricQuerierFactory == nil {
+		return false, 0, "", fmt.Errorf("metric querier not configured")
+	}
+	addr := strings.TrimSpace(g.Address)
+	if addr == "" {
+		addr = policy.Spec.MetricSource.Address
+	}
+	q, err := r.MetricQuerierFactory(addr)
+	if err != nil {
+		return false, 0, "", err
+	}
+	val, err := q.InstantQuery(ctx, g.Query)
+	if err != nil {
+		return false, 0, "", err
+	}
+	maxVal, err := strconv.ParseFloat(strings.TrimSpace(g.MaxMetricValue), 64)
+	if err != nil {
+		return false, 0, "", fmt.Errorf("parse scaleUpGuard.maxMetricValue: %w", err)
+	}
+	if val > maxVal {
+		return false, val, fmt.Sprintf("instant query value %.6g > max %.6g", val, maxVal), nil
+	}
+	return true, val, "", nil
 }
 
 // defaultForecasterFactory creates a Forecaster from the policy spec using

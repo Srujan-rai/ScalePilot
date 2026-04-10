@@ -1,0 +1,38 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "scalepilot.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "scalepilot.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: scalepilot-forecastpolicy
+      rules:
+        - alert: ScalePilotForecastTrainingFailures
+          expr: |
+            increase(scalepilot_forecastpolicy_training_total{result="failure"}[15m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: ForecastPolicy model training failed
+            description: >-
+              At least one ForecastPolicy background training run failed in the last interval.
+              Check operator logs and ForecastPolicy status conditions (reason TrainingFailed).
+        - alert: ScalePilotForecastHPAPatchesSkippedGuard
+          expr: |
+            increase(scalepilot_forecastpolicy_hpa_minreplicas_patch_total{result="skipped_guard"}[30m]) > 3
+          for: 10m
+          labels:
+            severity: info
+          annotations:
+            summary: Repeated scale-up skips due to scaleUpGuard
+            description: >-
+              ForecastPolicy is often blocking HPA minReplicas increases because scaleUpGuard
+              instant query exceeds maxMetricValue. Verify SLO query and thresholds.
+{{- end }}

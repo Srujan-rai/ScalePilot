@@ -102,6 +102,24 @@ func validateForecastPolicy(fp *ForecastPolicy) field.ErrorList {
 		}
 	}
 
+	if g := fp.Spec.ScaleUpGuard; g != nil {
+		gp := specPath.Child("scaleUpGuard")
+		if strings.TrimSpace(g.Query) == "" {
+			errs = append(errs, field.Required(gp.Child("query"), "query is required when scaleUpGuard is set"))
+		}
+		if strings.TrimSpace(g.MaxMetricValue) == "" {
+			errs = append(errs, field.Required(gp.Child("maxMetricValue"), "maxMetricValue is required when scaleUpGuard is set"))
+		} else {
+			mv, err := strconv.ParseFloat(strings.TrimSpace(g.MaxMetricValue), 64)
+			if err != nil || math.IsNaN(mv) || math.IsInf(mv, 0) {
+				errs = append(errs, field.Invalid(gp.Child("maxMetricValue"), g.MaxMetricValue, "must be a finite decimal number"))
+			}
+		}
+		if g.Address != "" && !strings.HasPrefix(g.Address, "http") {
+			errs = append(errs, field.Invalid(gp.Child("address"), g.Address, "must start with http:// or https://"))
+		}
+	}
+
 	return errs
 }
 

@@ -103,6 +103,23 @@ type TargetDeploymentRef struct {
 	Name string `json:"name"`
 }
 
+// ScaleUpGuard runs a Prometheus instant query before raising HPA minReplicas.
+// If the query returns a value strictly greater than MaxMetricValue, the scale-up is skipped.
+// Use for SLO-style gates (e.g. do not pre-scale while 5xx rate is high).
+type ScaleUpGuard struct {
+	// Address defaults to spec.metricSource.address when empty.
+	// +optional
+	Address string `json:"address,omitempty"`
+
+	// Query is PromQL executed as an instant query.
+	// +kubebuilder:validation:MinLength=1
+	Query string `json:"query"`
+
+	// MaxMetricValue is a decimal threshold; scale-up is blocked when the instant query is strictly greater than this value.
+	// +kubebuilder:validation:MinLength=1
+	MaxMetricValue string `json:"maxMetricValue"`
+}
+
 // ForecastPolicySpec defines the desired state of ForecastPolicy.
 type ForecastPolicySpec struct {
 	// TargetDeployment references the Deployment to forecast for.
@@ -165,6 +182,10 @@ type ForecastPolicySpec struct {
 	// +kubebuilder:default=false
 	// +optional
 	UseUpperConfidenceBound bool `json:"useUpperConfidenceBound,omitempty"`
+
+	// ScaleUpGuard optional Prometheus gate before increasing minReplicas.
+	// +optional
+	ScaleUpGuard *ScaleUpGuard `json:"scaleUpGuard,omitempty"`
 }
 
 // ForecastConditionType represents the state of a forecast policy.

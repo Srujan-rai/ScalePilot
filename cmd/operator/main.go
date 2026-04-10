@@ -37,8 +37,12 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+
 	autoscalingv1alpha1 "github.com/srujan-rai/scalepilot/api/v1alpha1"
 	"github.com/srujan-rai/scalepilot/internal/controller"
+
+	_ "github.com/srujan-rai/scalepilot/pkg/metrics" // register Prometheus metrics
 	"github.com/srujan-rai/scalepilot/pkg/cloudcost"
 	"github.com/srujan-rai/scalepilot/pkg/forecast"
 	"github.com/srujan-rai/scalepilot/pkg/multicluster"
@@ -53,6 +57,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(autoscalingv2.AddToScheme(scheme))
 	utilruntime.Must(autoscalingv1alpha1.AddToScheme(scheme))
 }
 
@@ -173,6 +178,7 @@ func main() {
 		Scheme:               mgr.GetScheme(),
 		ForecasterFactory:    nil, // uses defaultForecasterFactory
 		MetricQuerierFactory: metricQuerierFactory,
+		Recorder:             mgr.GetEventRecorderFor("forecastpolicy-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ForecastPolicy")
 		os.Exit(1)
