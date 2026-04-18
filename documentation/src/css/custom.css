@@ -482,12 +482,26 @@ body {
   width: 100%;
   border-collapse: collapse;
   min-width: 760px;
+  table-layout: fixed;
 }
 
 .comparison-table th,
 .comparison-table td {
   padding: 1rem 1.1rem;
   border-bottom: 1px solid var(--sp-border);
+}
+
+.comparison-table th:first-child,
+.comparison-table td:first-child {
+  width: 45%;
+  text-align: left;
+}
+
+.comparison-table th:not(:first-child),
+.comparison-table td:not(:first-child) {
+  width: 11%;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .comparison-table th {
@@ -519,7 +533,7 @@ body {
 }
 
 .check {
-  color: #111111;
+  color: var(--sp-text);
 }
 
 .cross {
@@ -527,7 +541,12 @@ body {
 }
 
 .highlight-col {
-  color: #000000;
+  color: var(--sp-text);
+}
+
+[data-theme='dark'] .check,
+[data-theme='dark'] .highlight-col {
+  color: #f5f5f5;
 }
 
 .stats-section {

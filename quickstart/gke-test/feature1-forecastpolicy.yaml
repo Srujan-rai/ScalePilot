@@ -1,0 +1,31 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ForecastPolicy
+metadata:
+  name: web-frontend-forecast
+  namespace: production
+spec:
+  targetDeployment:
+    name: web-frontend
+  targetHPA:
+    name: web-frontend-hpa
+  metricSource:
+    # Prometheus installed by setup.sh via Helm
+    address: http://prometheus-server.monitoring.svc.cluster.local:9090
+    # scalar(time()) is a synthetic metric that always increases —
+    # guaranteed to have history and produce a non-trivial forecast.
+    query: 'scalar(time())'
+    historyDuration: "1h"
+    stepInterval: "1m"
+  algorithm: ARIMA
+  arimaParams:
+    p: 2
+    d: 1
+    q: 1
+  leadTimeMinutes: 5
+  # Short retrain interval for fast feedback during testing
+  retrainIntervalMinutes: 2
+  maxReplicaCap: 10
+  targetMetricValuePerReplica: "100"
+  # dryRun: true means forecasts are computed and logged but the HPA is
+  # NOT modified. Set to false once you trust the output.
+  dryRun: true

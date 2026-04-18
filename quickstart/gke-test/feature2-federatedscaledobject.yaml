@@ -1,0 +1,35 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: FederatedScaledObject
+metadata:
+  name: order-processor-federation
+  namespace: production
+spec:
+  primaryCluster:
+    name: primary
+    # setup.sh creates this secret from your current kubeconfig
+    secretRef:
+      name: cluster-primary
+      namespace: scalepilot-system
+  overflowClusters:
+    - name: overflow
+      # setup.sh creates this secret pointing at the same cluster —
+      # overflow pods land in the same cluster (different namespace in prod)
+      secretRef:
+        name: cluster-overflow
+        namespace: scalepilot-system
+      maxCapacity: 5
+      priority: 1
+  metric:
+    prometheusAddress: http://prometheus-server.monitoring.svc.cluster.local:9090
+    # kube_deployment_status_replicas will be > 0 immediately after the
+    # test-workload.yaml Deployment is running — overflow triggers fast.
+    query: 'kube_deployment_status_replicas{deployment="order-processor",namespace="production"}'
+    # Set threshold to 0 so overflow fires on first reconcile.
+    # Increase to a real value once you've seen it work.
+    thresholdValue: "0"
+  workload:
+    deploymentName: order-processor
+    namespace: production
+  # Short cooldown so you can observe repeated reconciles without waiting
+  cooldownSeconds: 15
+  maxTotalReplicas: 10

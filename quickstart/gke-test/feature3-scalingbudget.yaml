@@ -1,0 +1,28 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ScalingBudget
+metadata:
+  name: test-budget
+  namespace: scalepilot-system
+spec:
+  namespace: production
+  # $0.10 ceiling — your GKE cluster will already exceed this,
+  # so breach + warning alerts fire immediately. Great for testing.
+  ceilingMillidollars: 100
+  cloudCost:
+    provider: GCP
+    # setup.sh creates this secret from your service account JSON
+    credentialsSecretRef:
+      name: gcp-billing-creds
+      namespace: scalepilot-system
+    # accountId = your GCP Project ID
+    # setup.sh patches this field automatically via kustomize patch
+    accountId: "YOUR_PROJECT_ID"
+  breachAction: Delay
+  warningThresholdPercent: 50
+  # Poll every minute for fast feedback during testing
+  pollIntervalMinutes: 1
+  # Optional: add Slack webhook to see live alerts
+  # notifications:
+  #   slack:
+  #     webhookURL: https://hooks.slack.com/services/XXX/YYY/ZZZ
+  #     channel: "#scalepilot-test"
