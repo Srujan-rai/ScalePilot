@@ -197,7 +197,7 @@ function HeroSection() {
           Pre-scale before<br />the spike
         </h1>
         <p className="hero__subtitle">
-          ScalePilot is a cloud-agnostic Kubernetes autoscaling operator. It trains ARIMA and Holt-Winters models on your Prometheus history and patches HPA <code>minReplicas</code> minutes before traffic arrives — while enforcing FinOps cost budgets and multi-cluster spillover.
+          ScalePilot is a cloud-agnostic Kubernetes autoscaling operator. It trains ARIMA and Holt-Winters models on your Prometheus history and patches HPA <code>minReplicas</code> minutes before traffic arrives while enforcing FinOps cost budgets and multi-cluster spillover.
         </p>
         <div className="hero-cta-group">
           <Link to="/docs/getting-started/installation" className="hero-cta-primary">
