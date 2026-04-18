@@ -10,7 +10,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 const config = {
   title: 'ScalePilot',
   tagline: 'Pre-scale before the spike. Cloud-agnostic Kubernetes autoscaling with predictive forecasting, multi-cluster federation, and FinOps budget controls.',
-  favicon: 'img/logo.svg',
+  favicon: 'img/scalepilot.png',
 
   // Set the production url of your site here
   url: 'https://srujan-rai.github.io',
@@ -73,7 +73,7 @@ const config = {
         id: 'alpha_notice',
         content:
           'ScalePilot is in active development (v0.1.0-alpha). APIs may change. <a href="https://github.com/srujan-rai/scalepilot/issues">Report issues</a> or <a href="https://github.com/srujan-rai/scalepilot">star us on GitHub</a>!',
-        backgroundColor: '#2563EB',
+        backgroundColor: '#111111',
         textColor: '#ffffff',
         isCloseable: true,
       },
@@ -82,8 +82,8 @@ const config = {
         title: 'ScalePilot',
         logo: {
           alt: 'ScalePilot Logo',
-          src: 'img/logo.svg',
-          srcDark: 'img/logo.svg',
+          src: 'img/scalepilot.png',
+          srcDark: 'img/scalepilot.png',
         },
         hideOnScroll: false,
         items: [
@@ -164,7 +164,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} ScalePilot Contributors. Built with Docusaurus. Licensed under Apache 2.0.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Srujan rai. Licensed under Apache 2.0.`,
       },
 
       prism: {

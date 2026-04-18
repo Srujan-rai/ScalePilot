@@ -39,7 +39,7 @@ const comparisonRows = [
 function CellValue({ val }) {
   if (val === true) return <span className="check">✓</span>;
   if (val === false) return <span className="cross">—</span>;
-  return <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{val}</span>;
+  return <span className={styles.comparisonNote}>{val}</span>;
 }
 
 function ComparisonTable() {
@@ -62,13 +62,13 @@ function ComparisonTable() {
                 <th>KEDA</th>
                 <th>Kubecost</th>
                 <th>Admiralty</th>
-                <th style={{ background: '#1d4ed8' }}>ScalePilot</th>
+                <th className={styles.comparisonTableFeaturedHead}>ScalePilot</th>
               </tr>
             </thead>
             <tbody>
               {comparisonRows.map((row, i) => (
                 <tr key={i}>
-                  <td style={{ fontWeight: 500 }}>{row.capability}</td>
+                  <td className={styles.comparisonTableCapability}>{row.capability}</td>
                   <td><CellValue val={row.hpa} /></td>
                   <td><CellValue val={row.keda} /></td>
                   <td><CellValue val={row.kubecost} /></td>

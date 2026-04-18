@@ -1,9 +1,9 @@
 .heroInstallHint {
   margin-top: 2.5rem;
   display: inline-block;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
   padding: 0.6rem 1.25rem;
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.75);
@@ -12,7 +12,7 @@
 
 .heroInstallHint code {
   background: transparent;
-  color: #93c5fd;
+  color: #ffffff;
   font-size: 0.875rem;
   padding: 0;
   border: none;
@@ -41,8 +41,8 @@
 .howItWorksStep {
   background: var(--sp-card-bg);
   border: 1px solid var(--sp-card-border);
-  border-radius: 12px;
-  padding: 1.75rem;
+  border-radius: 16px;
+  padding: 1.6rem;
   box-shadow: var(--sp-card-shadow);
   height: 100%;
 }
@@ -52,7 +52,7 @@
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  color: var(--ifm-color-primary);
+  color: var(--ifm-color-emphasis-700);
   padding: 0 0.5rem;
   padding-top: 2rem;
   opacity: 0.5;
@@ -61,7 +61,7 @@
 .stepNumber {
   font-size: 2.5rem;
   font-weight: 900;
-  color: var(--ifm-color-primary);
+  color: var(--ifm-color-emphasis-700);
   opacity: 0.15;
   line-height: 1;
   margin-bottom: 0.5rem;
@@ -80,4 +80,18 @@
   color: var(--sp-gray);
   line-height: 1.6;
   margin: 0;
+}
+
+.comparisonNote {
+  color: var(--sp-text-muted);
+  font-size: 0.86rem;
+}
+
+.comparisonTableCapability {
+  font-weight: 600;
+}
+
+.comparisonTableFeaturedHead {
+  background: #000000 !important;
+  color: #ffffff !important;
 }
