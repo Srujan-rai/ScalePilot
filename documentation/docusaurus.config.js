@@ -6,16 +6,24 @@
 
 import { themes as prismThemes } from 'prism-react-renderer';
 
+const isVercel = process.env.VERCEL === '1';
+const siteUrl =
+  process.env.DOCS_SITE_URL ||
+  (isVercel && process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'https://srujan-rai.github.io');
+const siteBaseUrl = process.env.DOCS_BASE_URL || (isVercel ? '/' : '/scalepilot/');
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'ScalePilot',
   tagline: 'Pre-scale before the spike. Cloud-agnostic Kubernetes autoscaling with predictive forecasting, multi-cluster federation, and FinOps budget controls.',
   favicon: 'img/scalepilot.png',
 
-  // Set the production url of your site here
-  url: 'https://srujan-rai.github.io',
+  // Set the production URL of your site here
+  url: siteUrl,
   // Set the /<baseUrl>/ pathname under which your site is served
-  baseUrl: '/scalepilot/',
+  baseUrl: siteBaseUrl,
 
   // GitHub pages deployment config.
   organizationName: 'srujan-rai',
