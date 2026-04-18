@@ -34,7 +34,9 @@ type HealthChecker interface {
 // All methods are safe for concurrent use.
 type Registry interface {
 	// Register adds or updates a cluster entry from a raw kubeconfig.
-	Register(ctx context.Context, name string, kubeconfig []byte, scheme *runtime.Scheme) error
+	// namespace, maxCapacity, and priority are stored on the entry and used for
+	// overflow routing; pass "" / nil / 0 to use defaults.
+	Register(ctx context.Context, name string, kubeconfig []byte, scheme *runtime.Scheme, namespace string, maxCapacity *int32, priority int32) error
 
 	// Unregister removes a cluster from the registry.
 	Unregister(name string)
@@ -71,7 +73,7 @@ func NewRegistry(checker HealthChecker) Registry {
 
 // Register adds or replaces a cluster entry by parsing the provided kubeconfig
 // bytes and constructing a controller-runtime client.
-func (r *clusterRegistry) Register(ctx context.Context, name string, kubeconfig []byte, scheme *runtime.Scheme) error {
+func (r *clusterRegistry) Register(ctx context.Context, name string, kubeconfig []byte, scheme *runtime.Scheme, namespace string, maxCapacity *int32, priority int32) error {
 	cfg, err := clientcmd.RESTConfigFromKubeConfig(kubeconfig)
 	if err != nil {
 		return fmt.Errorf("parsing kubeconfig for cluster %s: %w", name, err)
@@ -83,11 +85,14 @@ func (r *clusterRegistry) Register(ctx context.Context, name string, kubeconfig 
 	}
 
 	entry := &ClusterEntry{
-		Name:      name,
-		Client:    c,
-		Config:    cfg,
-		Healthy:   true,
-		LastProbe: time.Now(),
+		Name:        name,
+		Client:      c,
+		Config:      cfg,
+		Healthy:     true,
+		LastProbe:   time.Now(),
+		Namespace:   namespace,
+		MaxCapacity: maxCapacity,
+		Priority:    priority,
 	}
 
 	r.mu.Lock()

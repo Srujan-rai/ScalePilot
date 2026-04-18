@@ -131,7 +131,10 @@ func (q *azureQuerier) GetCurrentCost(ctx context.Context, namespace string) (*C
 			case float64:
 				totalCost += v
 			case json.Number:
-				f, _ := v.Float64()
+				f, err := v.Float64()
+				if err != nil {
+					return nil, fmt.Errorf("parsing cost value from Azure response: %w", err)
+				}
 				totalCost += f
 			}
 		}

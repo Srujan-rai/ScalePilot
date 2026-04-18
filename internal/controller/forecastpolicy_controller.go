@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -326,7 +328,8 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("updating ForecastPolicy status: %w", err)
 	}
 
-	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
+	jitter := time.Duration(rand.Int63n(int64(20 * time.Second)))
+	return ctrl.Result{RequeueAfter: 50*time.Second + jitter}, nil
 }
 
 // trainingFetchTimeout bounds Prometheus range queries and model fitting so a
@@ -384,6 +387,17 @@ func (r *ForecastPolicyReconciler) trainModelAsync(ctx context.Context, policy a
 		r.reportTrainingFailure(policyKey, fmt.Sprintf("prometheus range query: %v", err))
 		return
 	}
+
+	filtered := data[:0]
+	for _, dp := range data {
+		if !math.IsNaN(dp.Value) && !math.IsInf(dp.Value, 0) {
+			filtered = append(filtered, dp)
+		}
+	}
+	if removed := len(data) - len(filtered); removed > 0 {
+		logger.Info("filtered non-finite values from training data", "removed", removed)
+	}
+	data = filtered
 
 	params, err := forecaster.Train(ctx, data)
 	if err != nil {
@@ -566,13 +580,19 @@ func defaultForecasterFactory(spec autoscalingv1alpha1.ForecastPolicySpec) (fore
 			SeasonalPeriods: 24,
 		}
 		if spec.HoltWintersParams != nil {
-			if v, err := strconv.ParseFloat(spec.HoltWintersParams.Alpha, 64); err == nil {
+			if v, err := strconv.ParseFloat(spec.HoltWintersParams.Alpha, 64); err != nil {
+				return nil, fmt.Errorf("parsing holtWintersParams.alpha %q: %w", spec.HoltWintersParams.Alpha, err)
+			} else {
 				cfg.Alpha = v
 			}
-			if v, err := strconv.ParseFloat(spec.HoltWintersParams.Beta, 64); err == nil {
+			if v, err := strconv.ParseFloat(spec.HoltWintersParams.Beta, 64); err != nil {
+				return nil, fmt.Errorf("parsing holtWintersParams.beta %q: %w", spec.HoltWintersParams.Beta, err)
+			} else {
 				cfg.Beta = v
 			}
-			if v, err := strconv.ParseFloat(spec.HoltWintersParams.Gamma, 64); err == nil {
+			if v, err := strconv.ParseFloat(spec.HoltWintersParams.Gamma, 64); err != nil {
+				return nil, fmt.Errorf("parsing holtWintersParams.gamma %q: %w", spec.HoltWintersParams.Gamma, err)
+			} else {
 				cfg.Gamma = v
 			}
 			cfg.SeasonalPeriods = spec.HoltWintersParams.SeasonalPeriods

@@ -21,7 +21,6 @@ ScalePilot extends HPA and KEDA with three capabilities that don't exist anywher
   - [ClusterScaleProfile](#4-clusterscaleprofile)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
-  - [GKE and cluster capacity](#gke-and-cluster-capacity)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
 - [CLI Reference](#cli-reference)

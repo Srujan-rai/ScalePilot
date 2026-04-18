@@ -53,6 +53,18 @@ func NewGCPQuerier(config GCPConfig) (CostQuerier, error) {
 		config.TablePattern = "gcp_billing_export_v1_*"
 	}
 
+	// Validate identifiers that are interpolated into the BigQuery query to
+	// prevent injection via malformed config values.
+	for field, val := range map[string]string{
+		"projectID":    config.ProjectID,
+		"datasetID":    config.DatasetID,
+		"tablePattern": config.TablePattern,
+	} {
+		if err := validateBQIdentifier(val, field); err != nil {
+			return nil, err
+		}
+	}
+
 	creds, err := google.CredentialsFromJSON( //nolint:staticcheck // no non-deprecated alternative for JSON-based credentials
 		context.Background(),
 		[]byte(config.ServiceAccountJSON),
@@ -72,6 +84,17 @@ func NewGCPQuerier(config GCPConfig) (CostQuerier, error) {
 }
 
 func (q *gcpQuerier) Provider() string { return "GCP" }
+
+// validateBQIdentifier rejects values that would allow injection into a
+// backtick-quoted BigQuery identifier (ProjectID, DatasetID, TablePattern).
+func validateBQIdentifier(value, fieldName string) error {
+	for _, c := range value {
+		if c == '`' || c == '\'' || c == ';' || c == '\n' || c == '\r' || c == 0 {
+			return fmt.Errorf("GCP config field %q contains invalid character %q", fieldName, string(c))
+		}
+	}
+	return nil
+}
 
 // GetCurrentCost queries BigQuery billing export for the current month's spend
 // filtered by the GKE label "k8s-namespace".

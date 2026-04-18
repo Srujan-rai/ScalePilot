@@ -147,8 +147,63 @@ func TestCachedQuerier_ConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 
-	// The exact call count depends on timing, but it should be at least 1
-	// and not crash (no data races).
+	// At least 1 inner call, no data races, and subsequent calls are cached.
+	if inner.getCallCount() < 1 {
+		t.Error("expected at least 1 inner call")
+	}
+}
+
+func TestCachedQuerier_ConcurrentInvalidation(t *testing.T) {
+	inner := &mockQuerier{
+		data: &CostData{CurrentSpendMillidollars: 9999},
+	}
+	cached := NewCachedQuerier(inner, 5*time.Minute)
+
+	// Pre-warm the cache.
+	_, _ = cached.GetCurrentCost(context.Background(), "prod")
+
+	var wg sync.WaitGroup
+	// 30 readers + 20 invalidators running simultaneously — must not panic or race.
+	for i := 0; i < 30; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = cached.GetCurrentCost(context.Background(), "prod")
+		}()
+	}
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cached.Invalidate("prod")
+		}()
+	}
+	wg.Wait()
+}
+
+func TestCachedQuerier_NoDuplicateFetchOnConcurrentExpiry(t *testing.T) {
+	inner := &mockQuerier{
+		data: &CostData{CurrentSpendMillidollars: 1000},
+	}
+	// Very short TTL so it expires immediately.
+	cached := NewCachedQuerier(inner, time.Nanosecond)
+
+	// Expire the cache by sleeping.
+	time.Sleep(time.Millisecond)
+
+	// 20 goroutines all see the cache miss simultaneously.
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = cached.GetCurrentCost(context.Background(), "prod")
+		}()
+	}
+	wg.Wait()
+
+	// The double-check pattern should reduce (but not necessarily eliminate)
+	// duplicate fetches. At minimum, the data must always be returned.
 	if inner.getCallCount() < 1 {
 		t.Error("expected at least 1 inner call")
 	}

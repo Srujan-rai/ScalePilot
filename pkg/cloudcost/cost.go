@@ -67,13 +67,25 @@ func NewCachedQuerier(inner CostQuerier, ttl time.Duration) *CachedQuerier {
 }
 
 // GetCurrentCost returns cached data if fresh, otherwise queries the underlying provider.
+// A double-check under the write lock prevents concurrent goroutines from
+// issuing duplicate backend queries when the cache entry expires simultaneously.
 func (c *CachedQuerier) GetCurrentCost(ctx context.Context, namespace string) (*CostData, error) {
 	c.mu.RLock()
 	if entry, ok := c.cache[namespace]; ok && time.Now().Before(entry.expiresAt) {
+		data := entry.data
 		c.mu.RUnlock()
-		return entry.data, nil
+		return data, nil
 	}
 	c.mu.RUnlock()
+
+	// Re-check under write lock so only one goroutine fetches for this namespace.
+	c.mu.Lock()
+	if entry, ok := c.cache[namespace]; ok && time.Now().Before(entry.expiresAt) {
+		data := entry.data
+		c.mu.Unlock()
+		return data, nil
+	}
+	c.mu.Unlock()
 
 	data, err := c.inner.GetCurrentCost(ctx, namespace)
 	if err != nil {

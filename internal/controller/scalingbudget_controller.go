@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -97,7 +98,7 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	spend := costData.CurrentSpendMillidollars
 	utilization := 0
 	if ceiling > 0 {
-		utilization = int((spend * 100) / ceiling)
+		utilization = int(math.Round(float64(spend*100) / float64(ceiling)))
 	}
 	breached := spend >= ceiling
 
@@ -124,7 +125,8 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.sendNotification(ctx, budget, webhook.SeverityWarning,
 			"Budget Warning",
 			fmt.Sprintf("Namespace %s is at %d%% of its $%.2f budget ceiling",
-				budget.Spec.Namespace, utilization, float64(ceiling)/1000.0))
+				budget.Spec.Namespace, utilization, float64(ceiling)/1000.0),
+			now)
 	}
 
 	// Handle breach.
@@ -142,7 +144,8 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			"Budget Breached",
 			fmt.Sprintf("Namespace %s exceeded its $%.2f ceiling (current: $%.2f). Action: %s",
 				budget.Spec.Namespace, float64(ceiling)/1000.0,
-				float64(spend)/1000.0, actionNote))
+				float64(spend)/1000.0, actionNote),
+			now)
 	}
 
 	// Set conditions.
@@ -209,7 +212,7 @@ func (r *ScalingBudgetReconciler) updateBudgetStatusError(ctx context.Context, b
 	return ctrl.Result{RequeueAfter: 60 * time.Second}, nil
 }
 
-func (r *ScalingBudgetReconciler) sendNotification(ctx context.Context, budget autoscalingv1alpha1.ScalingBudget, severity webhook.Severity, title, message string) {
+func (r *ScalingBudgetReconciler) sendNotification(ctx context.Context, budget autoscalingv1alpha1.ScalingBudget, severity webhook.Severity, title, message string, now time.Time) {
 	logger := log.FromContext(ctx)
 
 	alert := webhook.Alert{
@@ -218,7 +221,7 @@ func (r *ScalingBudgetReconciler) sendNotification(ctx context.Context, budget a
 		Severity:  severity,
 		Namespace: budget.Spec.Namespace,
 		Resource:  fmt.Sprintf("ScalingBudget/%s", budget.Name),
-		Timestamp: time.Now(),
+		Timestamp: now,
 	}
 
 	// Send via globally-configured senders (backward compat).

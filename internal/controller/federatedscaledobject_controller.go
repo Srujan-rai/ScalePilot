@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -90,7 +91,11 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	threshold, _ := strconv.ParseFloat(fso.Spec.Metric.ThresholdValue, 64)
+	threshold, err := strconv.ParseFloat(fso.Spec.Metric.ThresholdValue, 64)
+	if err != nil {
+		return r.updateFSOStatusError(ctx, &fso, now, "InvalidThreshold",
+			fmt.Sprintf("parsing thresholdValue %q: %v", fso.Spec.Metric.ThresholdValue, err))
+	}
 
 	// Read primary deployment replicas.
 	var primaryDeploy appsv1.Deployment
@@ -138,6 +143,13 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 	totalReplicas := primaryReplicas
 	spilloverActive := false
 
+	// Drive total replicas toward ceil(currentValue), distributing the
+	// remaining need across clusters in priority order.
+	targetTotal := int32(math.Ceil(currentValue))
+	if targetTotal < primaryReplicas {
+		targetTotal = primaryReplicas
+	}
+
 	for _, oc := range fso.Spec.OverflowClusters {
 		status := autoscalingv1alpha1.OverflowClusterStatus{
 			Name:     oc.Name,
@@ -156,7 +168,10 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 
 		// If spillover needed and cluster is healthy, scale up on overflow.
 		if spilloverNeeded && status.Healthy && !inCooldown {
-			desiredOverflow := int32(1)
+			desiredOverflow := targetTotal - totalReplicas
+			if desiredOverflow < 0 {
+				desiredOverflow = 0
+			}
 			if oc.MaxCapacity != nil && desiredOverflow > *oc.MaxCapacity {
 				desiredOverflow = *oc.MaxCapacity
 			}
@@ -200,7 +215,7 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 	fso.Status.SpilloverActive = spilloverActive
 	fso.Status.OverflowClusters = overflowStatuses
 
-	if spilloverNeeded && !inCooldown {
+	if spilloverActive {
 		fso.Status.LastScaleTime = &nowMeta
 	}
 
@@ -257,7 +272,7 @@ func (r *FederatedScaledObjectReconciler) ensureClustersRegistered(ctx context.C
 			return fmt.Errorf("secret %s missing 'kubeconfig' key", secretKey)
 		}
 
-		if err := r.ClusterRegistry.Register(ctx, ref.Name, kubeconfigData, r.Scheme); err != nil {
+		if err := r.ClusterRegistry.Register(ctx, ref.Name, kubeconfigData, r.Scheme, ref.Namespace, ref.MaxCapacity, ref.Priority); err != nil {
 			return fmt.Errorf("registering cluster %s: %w", ref.Name, err)
 		}
 	}
@@ -281,6 +296,9 @@ func (r *FederatedScaledObjectReconciler) applyOverflowDeployment(
 	if !found {
 		return fmt.Errorf("cluster %s not found in registry", clusterRef.Name)
 	}
+	if entry.Client == nil {
+		return fmt.Errorf("cluster %s has no client configured", clusterRef.Name)
+	}
 
 	targetNS := clusterRef.Namespace
 	if targetNS == "" {
@@ -297,30 +315,42 @@ func (r *FederatedScaledObjectReconciler) applyOverflowDeployment(
 		return fmt.Errorf("reading primary deployment for replication: %w", err)
 	}
 
-	overflowDeploy := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-overflow", fso.Spec.Workload.DeploymentName),
-			Namespace: targetNS,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "scalepilot",
-				"scalepilot.io/fso":            fso.Name,
-				"scalepilot.io/source-cluster": fso.Spec.PrimaryCluster.Name,
-			},
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Selector: primaryDeploy.Spec.Selector,
-			Template: primaryDeploy.Spec.Template,
-		},
+	overflowName := fmt.Sprintf("%s-overflow", fso.Spec.Workload.DeploymentName)
+	overflowLabels := map[string]string{
+		"app.kubernetes.io/managed-by": "scalepilot",
+		"scalepilot.io/fso":            fso.Name,
+		"scalepilot.io/source-cluster": fso.Spec.PrimaryCluster.Name,
 	}
 
-	// Use server-side apply for idempotent, conflict-free writes.
-	if err := entry.Client.Patch(ctx, overflowDeploy,
-		client.Apply,
-		client.FieldOwner("scalepilot"),
-		client.ForceOwnership,
-	); err != nil {
-		return fmt.Errorf("applying overflow deployment to cluster %s: %w", clusterRef.Name, err)
+	// Try to fetch the existing overflow deployment; create or update as needed.
+	var existing appsv1.Deployment
+	getErr := entry.Client.Get(ctx, types.NamespacedName{Name: overflowName, Namespace: targetNS}, &existing)
+	if errors.IsNotFound(getErr) {
+		deploy := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      overflowName,
+				Namespace: targetNS,
+				Labels:    overflowLabels,
+			},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &replicas,
+				Selector: primaryDeploy.Spec.Selector,
+				Template: primaryDeploy.Spec.Template,
+			},
+		}
+		if err := entry.Client.Create(ctx, deploy); err != nil {
+			return fmt.Errorf("creating overflow deployment on cluster %s: %w", clusterRef.Name, err)
+		}
+	} else if getErr != nil {
+		return fmt.Errorf("getting overflow deployment on cluster %s: %w", clusterRef.Name, getErr)
+	} else {
+		existing.Labels = overflowLabels
+		existing.Spec.Replicas = &replicas
+		existing.Spec.Selector = primaryDeploy.Spec.Selector
+		existing.Spec.Template = primaryDeploy.Spec.Template
+		if err := entry.Client.Update(ctx, &existing); err != nil {
+			return fmt.Errorf("updating overflow deployment on cluster %s: %w", clusterRef.Name, err)
+		}
 	}
 
 	return nil

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Production build
+build/
+
+# Docusaurus internal cache
+.docusaurus/
+
+# Generated files
+.cache-loader/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.production
