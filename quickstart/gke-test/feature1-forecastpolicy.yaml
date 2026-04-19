@@ -10,10 +10,12 @@ spec:
     name: web-frontend-hpa
   metricSource:
     # Prometheus installed by setup.sh via Helm
-    address: http://prometheus-server.monitoring.svc.cluster.local:9090
+    # In-cluster address when operator runs inside the cluster.
+    # When running locally via `make run`, use kubectl port-forward and set localhost:9090.
+    address: http://localhost:9090
     # scalar(time()) is a synthetic metric that always increases —
     # guaranteed to have history and produce a non-trivial forecast.
-    query: 'scalar(time())'
+    query: 'vector(time())'
     historyDuration: "1h"
     stepInterval: "1m"
   algorithm: ARIMA
@@ -23,7 +25,7 @@ spec:
     q: 1
   leadTimeMinutes: 5
   # Short retrain interval for fast feedback during testing
-  retrainIntervalMinutes: 2
+  retrainIntervalMinutes: 5
   maxReplicaCap: 10
   targetMetricValuePerReplica: "100"
   # dryRun: true means forecasts are computed and logged but the HPA is

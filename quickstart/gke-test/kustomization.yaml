@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - namespaces.yaml
   - test-workload.yaml
+  - load-generator.yaml
   - feature1-forecastpolicy.yaml
   - feature2-federatedscaledobject.yaml
-  - feature3-scalingbudget.yaml
+  # feature3-scalingbudget.yaml requires a GCP SA key — uncomment when available

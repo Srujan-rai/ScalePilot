@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-generator
+  namespace: production
+  labels:
+    app: load-generator
+spec:
+  replicas: 0   # start at 0, demo.sh scales it up
+  selector:
+    matchLabels:
+      app: load-generator
+  template:
+    metadata:
+      labels:
+        app: load-generator
+    spec:
+      containers:
+        - name: load
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Load generator starting..."
+              while true; do
+                wget -q -O /dev/null http://web-frontend.production.svc.cluster.local 2>/dev/null || true
+                sleep 0.1
+              done
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-frontend
+  namespace: production
+spec:
+  selector:
+    app: web-frontend
+  ports:
+    - port: 80
+      targetPort: 80

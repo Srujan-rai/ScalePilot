@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 # ScalePilot GKE Test Setup
 # Usage: ./setup.sh <gcp-project-id> [sa-key-path]
@@ -40,6 +41,13 @@ fi
 info "Fetching cluster credentials..."
 gcloud container clusters get-credentials "$CLUSTER_NAME" --region "$REGION"
 
+info "Waiting for cluster API to become reachable..."
+until kubectl cluster-info &>/dev/null; do
+  echo "  cluster not ready yet, retrying in 10s..."
+  sleep 10
+done
+info "Cluster API is reachable."
+
 # ── 3. Install CRDs ───────────────────────────────────────────────────────────
 info "Installing ScalePilot CRDs..."
 make -C "$REPO_ROOT" install
@@ -48,41 +56,82 @@ make -C "$REPO_ROOT" install
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update &>/dev/null
 helm repo update &>/dev/null
 
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
 if helm status prometheus -n monitoring &>/dev/null; then
   warn "Prometheus already installed — skipping."
 else
   info "Installing Prometheus..."
-  kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
   helm install prometheus prometheus-community/prometheus \
     --namespace monitoring \
     --set alertmanager.enabled=false \
     --set prometheus-pushgateway.enabled=false \
+    --set prometheus-node-exporter.enabled=false \
     --set server.persistentVolume.size=2Gi \
     --wait --timeout 5m
 fi
 
-# ── 5. GCP Service Account for billing ───────────────────────────────────────
-SA_NAME="scalepilot-cost"
-SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+# Install Grafana with the ScalePilot demo dashboard pre-loaded.
+helm repo add grafana https://grafana.github.io/helm-charts --force-update &>/dev/null
+helm repo update &>/dev/null
 
-if ! gcloud iam service-accounts describe "$SA_EMAIL" &>/dev/null; then
-  info "Creating GCP service account $SA_EMAIL..."
-  gcloud iam service-accounts create "$SA_NAME" \
-    --display-name "ScalePilot Cost Reader" --quiet
+DASHBOARD_JSON="$(cat "$(dirname "$0")/grafana-dashboard.json")"
 
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:${SA_EMAIL}" \
-    --role="roles/bigquery.dataViewer" --quiet
-
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:${SA_EMAIL}" \
-    --role="roles/bigquery.jobUser" --quiet
+if helm status grafana -n monitoring &>/dev/null; then
+  warn "Grafana already installed — skipping."
+else
+  info "Installing Grafana with ScalePilot demo dashboard..."
+  helm install grafana grafana/grafana \
+    --namespace monitoring \
+    --set adminPassword=scalepilot \
+    --set persistence.enabled=false \
+    --set datasources."datasources\.yaml".apiVersion=1 \
+    --set datasources."datasources\.yaml".datasources[0].name=Prometheus \
+    --set datasources."datasources\.yaml".datasources[0].type=prometheus \
+    --set datasources."datasources\.yaml".datasources[0].url=http://prometheus-server.monitoring.svc.cluster.local \
+    --set datasources."datasources\.yaml".datasources[0].isDefault=true \
+    --wait --timeout 5m
 fi
 
+# Upload the dashboard via Grafana API after it starts.
+info "Loading ScalePilot demo dashboard into Grafana..."
+kubectl port-forward svc/grafana -n monitoring 3000:80 &>/dev/null &
+GRAFANA_PF_PID=$!
+sleep 5
+curl -s -X POST http://admin:scalepilot@localhost:3000/api/dashboards/db \
+  -H "Content-Type: application/json" \
+  -d "{\"dashboard\": ${DASHBOARD_JSON}, \"overwrite\": true, \"folderId\": 0}" &>/dev/null \
+  && info "Dashboard loaded at http://localhost:3000 (admin / scalepilot)" \
+  || warn "Dashboard upload failed — upload grafana-dashboard.json manually."
+kill $GRAFANA_PF_PID 2>/dev/null || true
+
+# ── 5. GCP Service Account for billing (optional — skipped if org policy blocks key creation) ──
+SA_NAME="scalepilot-cost"
+SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+SKIP_FINOPS=false
+
 if [[ ! -f "$SA_KEY" ]]; then
+  if ! gcloud iam service-accounts describe "$SA_EMAIL" &>/dev/null; then
+    info "Creating GCP service account $SA_EMAIL..."
+    gcloud iam service-accounts create "$SA_NAME" \
+      --display-name "ScalePilot Cost Reader" --quiet
+
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+      --member="serviceAccount:${SA_EMAIL}" \
+      --role="roles/bigquery.dataViewer" --quiet
+
+    gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+      --member="serviceAccount:${SA_EMAIL}" \
+      --role="roles/bigquery.jobUser" --quiet
+  fi
+
   info "Downloading service account key to $SA_KEY..."
-  gcloud iam service-accounts keys create "$SA_KEY" \
-    --iam-account="$SA_EMAIL" --quiet
+  if ! gcloud iam service-accounts keys create "$SA_KEY" \
+      --iam-account="$SA_EMAIL" --quiet 2>&1; then
+    warn "SA key creation blocked by org policy — skipping Feature 3 (ScalingBudget)."
+    warn "To test FinOps locally later, use Workload Identity or a personal project."
+    SKIP_FINOPS=true
+  fi
 else
   warn "SA key $SA_KEY already exists — reusing it."
 fi
@@ -90,11 +139,13 @@ fi
 # ── 6. Kubernetes Secrets ─────────────────────────────────────────────────────
 kubectl create namespace scalepilot-system --dry-run=client -o yaml | kubectl apply -f -
 
-info "Creating GCP billing credentials secret..."
-kubectl create secret generic gcp-billing-creds \
-  --from-file=service_account_json="$SA_KEY" \
-  -n scalepilot-system \
-  --dry-run=client -o yaml | kubectl apply -f -
+if [[ "$SKIP_FINOPS" == "false" ]]; then
+  info "Creating GCP billing credentials secret..."
+  kubectl create secret generic gcp-billing-creds \
+    --from-file=service_account_json="$SA_KEY" \
+    -n scalepilot-system \
+    --dry-run=client -o yaml | kubectl apply -f -
+fi
 
 info "Creating cluster kubeconfig secrets for federation..."
 KUBECONFIG_PATH="$(mktemp)"
@@ -121,7 +172,14 @@ info "Patched project ID into feature3-scalingbudget.yaml"
 info "Applying all ScalePilot test manifests..."
 kubectl apply -k "$(dirname "$0")"
 
-# ── 9. Start operator locally ─────────────────────────────────────────────────
+# ── 9. Port-forward Prometheus so the locally-running operator can reach it ───
+info "Port-forwarding Prometheus to localhost:9090..."
+kubectl port-forward svc/prometheus-server -n monitoring 9090:80 &
+PF_PID=$!
+trap "kill $PF_PID 2>/dev/null" EXIT
+sleep 3  # give port-forward time to establish
+
+# ── 10. Start operator locally ────────────────────────────────────────────────
 info "Setup complete! Starting ScalePilot operator..."
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

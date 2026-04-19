@@ -1,0 +1,235 @@
+{
+  "title": "ScalePilot Demo",
+  "uid": "scalepilot-demo",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "🔮 Feature 1 — Predictive Scaling: Forecast vs Actual Replicas",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 16, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Predicted (ForecastPolicy)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#5794F2", "mode": "fixed" } },
+                           { "id": "custom.lineStyle", "value": { "dash": [10,5], "fill": "dash" } }] },
+          { "matcher": { "id": "byName", "options": "Current Replicas (HPA)" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "HPA Min Replicas" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF9830", "mode": "fixed" } },
+                           { "id": "custom.lineStyle", "value": { "dash": [4,4], "fill": "dash" } }] }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler=\"web-frontend-hpa\",namespace=\"production\"}",
+          "legendFormat": "Current Replicas (HPA)",
+          "refId": "A"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_spec_min_replicas{horizontalpodautoscaler=\"web-frontend-hpa\",namespace=\"production\"}",
+          "legendFormat": "HPA Min Replicas",
+          "refId": "B"
+        },
+        {
+          "expr": "kube_horizontalpodautoscaler_status_desired_replicas{horizontalpodautoscaler=\"web-frontend-hpa\",namespace=\"production\"}",
+          "legendFormat": "HPA Desired Replicas",
+          "refId": "C"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "📈 Training Success Rate",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "green", "value": 0.95 }
+            ]
+          },
+          "mappings": []
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(scalepilot_forecastpolicy_training_total{result=\"success\"}[5m]) / (rate(scalepilot_forecastpolicy_training_total[5m]) > 0)",
+          "legendFormat": "Training Success Rate",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" }
+    },
+    {
+      "id": 3,
+      "title": "🔁 HPA Patches Applied",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 4, "w": 4, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": { "steps": [{ "color": "blue", "value": 0 }] }
+        }
+      },
+      "targets": [
+        {
+          "expr": "increase(scalepilot_forecastpolicy_hpa_minreplicas_patch_total{result=\"applied\"}[1h])",
+          "legendFormat": "Patches Applied",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+    },
+    {
+      "id": 4,
+      "title": "🌍 Feature 2 — Multi-Cluster Federation: Replica Distribution",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 16, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 20 },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Primary Cluster Replicas" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#73BF69", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "Overflow Cluster Replicas" },
+            "properties": [{ "id": "color", "value": { "fixedColor": "#FF5733", "mode": "fixed" } }] }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "kube_deployment_status_replicas_ready{deployment=\"order-processor\",namespace=\"production\"}",
+          "legendFormat": "Primary Cluster Replicas",
+          "refId": "A"
+        },
+        {
+          "expr": "kube_deployment_status_replicas_ready{deployment=\"order-processor-overflow\",namespace=\"production\"}",
+          "legendFormat": "Overflow Cluster Replicas",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "⚡ Total Replicas (Primary + Overflow)",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 8, "w": 4, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "(kube_deployment_status_replicas_ready{deployment=\"order-processor\",namespace=\"production\"} or vector(0)) + (kube_deployment_status_replicas_ready{deployment=\"order-processor-overflow\",namespace=\"production\"} or vector(0))",
+          "legendFormat": "Total Replicas",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "textMode": "value_and_name" }
+    },
+    {
+      "id": 6,
+      "title": "🌊 Spillover Active?",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 12, "w": 4, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "NO SPILLOVER", "color": "green" } } },
+            { "type": "range", "options": { "from": 1, "to": 1000, "result": { "text": "SPILLING OVER", "color": "red" } } }
+          ],
+          "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "targets": [
+        {
+          "expr": "kube_deployment_status_replicas_ready{deployment=\"order-processor-overflow\",namespace=\"production\"} or vector(0)",
+          "legendFormat": "Overflow Replicas",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+    },
+    {
+      "id": 7,
+      "title": "🔥 Load — Active Load Generator Pods",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "#F2495C" },
+          "custom": { "lineWidth": 2, "fillOpacity": 30 },
+          "unit": "short",
+          "min": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "kube_deployment_status_replicas_ready{deployment=\"load-generator\",namespace=\"production\"}",
+          "legendFormat": "Load Generator Pods",
+          "refId": "A"
+        }
+      ],
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 8,
+      "title": "📦 All Deployment Replicas (production namespace)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "short",
+          "min": 0
+        }
+      },
+      "targets": [
+        {
+          "expr": "kube_deployment_status_replicas_ready{namespace=\"production\"}",
+          "legendFormat": "{{ deployment }}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      }
+    }
+  ]
+}

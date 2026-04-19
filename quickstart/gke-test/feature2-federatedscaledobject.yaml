@@ -20,16 +20,18 @@ spec:
       maxCapacity: 5
       priority: 1
   metric:
-    prometheusAddress: http://prometheus-server.monitoring.svc.cluster.local:9090
+    # In-cluster address when operator runs inside the cluster.
+    # When running locally via `make run`, use kubectl port-forward and set localhost:9090.
+    prometheusAddress: http://localhost:9090
     # kube_deployment_status_replicas will be > 0 immediately after the
     # test-workload.yaml Deployment is running — overflow triggers fast.
-    query: 'kube_deployment_status_replicas{deployment="order-processor",namespace="production"}'
-    # Set threshold to 0 so overflow fires on first reconcile.
-    # Increase to a real value once you've seen it work.
+    query: 'vector(5)'
+    # threshold=0 means: overflow when metric > 0.
+    # vector(5) returns 5 → ceil(5) - primaryReplicas(1) = 4 overflow replicas.
     thresholdValue: "0"
   workload:
     deploymentName: order-processor
     namespace: production
   # Short cooldown so you can observe repeated reconciles without waiting
-  cooldownSeconds: 15
+  cooldownSeconds: 30
   maxTotalReplicas: 10
