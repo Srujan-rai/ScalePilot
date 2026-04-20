@@ -42,9 +42,9 @@ import (
 	autoscalingv1alpha1 "github.com/srujan-rai/scalepilot/api/v1alpha1"
 	"github.com/srujan-rai/scalepilot/internal/controller"
 
-	_ "github.com/srujan-rai/scalepilot/pkg/metrics" // register Prometheus metrics
 	"github.com/srujan-rai/scalepilot/pkg/cloudcost"
 	"github.com/srujan-rai/scalepilot/pkg/forecast"
+	_ "github.com/srujan-rai/scalepilot/pkg/metrics" // register Prometheus metrics
 	"github.com/srujan-rai/scalepilot/pkg/multicluster"
 	promclient "github.com/srujan-rai/scalepilot/pkg/prometheus"
 	webhookpkg "github.com/srujan-rai/scalepilot/pkg/webhook"

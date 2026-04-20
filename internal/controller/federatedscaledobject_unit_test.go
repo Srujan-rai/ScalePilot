@@ -119,9 +119,9 @@ func (r *fsoFakeRegistry) Register(_ context.Context, name string, _ []byte, _ *
 	}
 	return nil
 }
-func (r *fsoFakeRegistry) Unregister(name string)                     { delete(r.entries, name) }
-func (r *fsoFakeRegistry) RunHealthChecks(_ context.Context)          {}
-func (r *fsoFakeRegistry) List() []*multicluster.ClusterEntry         { return nil }
+func (r *fsoFakeRegistry) Unregister(name string)                        { delete(r.entries, name) }
+func (r *fsoFakeRegistry) RunHealthChecks(_ context.Context)             {}
+func (r *fsoFakeRegistry) List() []*multicluster.ClusterEntry            { return nil }
 func (r *fsoFakeRegistry) HealthyOverflow() []*multicluster.ClusterEntry { return nil }
 
 func (r *fsoFakeRegistry) Get(name string) (*multicluster.ClusterEntry, bool) {

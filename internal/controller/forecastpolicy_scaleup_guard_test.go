@@ -46,8 +46,8 @@ func TestEvaluateScaleUpGuard(t *testing.T) {
 	t.Run("no factory denies", func(t *testing.T) {
 		p := basePolicy()
 		p.Spec.ScaleUpGuard = &autoscalingv1alpha1.ScaleUpGuard{
-			Query:           "up",
-			MaxMetricValue:  "1",
+			Query:          "up",
+			MaxMetricValue: "1",
 		}
 		r := &ForecastPolicyReconciler{}
 		_, _, _, err := r.evaluateScaleUpGuard(ctx, p)
@@ -59,8 +59,8 @@ func TestEvaluateScaleUpGuard(t *testing.T) {
 	t.Run("blocks when value above max", func(t *testing.T) {
 		p := basePolicy()
 		p.Spec.ScaleUpGuard = &autoscalingv1alpha1.ScaleUpGuard{
-			Query:           "errors_total",
-			MaxMetricValue:  "10",
+			Query:          "errors_total",
+			MaxMetricValue: "10",
 		}
 		r := &ForecastPolicyReconciler{
 			MetricQuerierFactory: func(string) (MetricQuerier, error) {
@@ -76,8 +76,8 @@ func TestEvaluateScaleUpGuard(t *testing.T) {
 	t.Run("allows when value at max", func(t *testing.T) {
 		p := basePolicy()
 		p.Spec.ScaleUpGuard = &autoscalingv1alpha1.ScaleUpGuard{
-			Query:           "x",
-			MaxMetricValue:  "10",
+			Query:          "x",
+			MaxMetricValue: "10",
 		}
 		r := &ForecastPolicyReconciler{
 			MetricQuerierFactory: func(string) (MetricQuerier, error) {
@@ -93,9 +93,9 @@ func TestEvaluateScaleUpGuard(t *testing.T) {
 	t.Run("custom address passed to factory", func(t *testing.T) {
 		p := basePolicy()
 		p.Spec.ScaleUpGuard = &autoscalingv1alpha1.ScaleUpGuard{
-			Address:         "http://other:9090",
-			Query:           "x",
-			MaxMetricValue:  "1",
+			Address:        "http://other:9090",
+			Query:          "x",
+			MaxMetricValue: "1",
 		}
 		var seen string
 		r := &ForecastPolicyReconciler{

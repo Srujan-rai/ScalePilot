@@ -178,6 +178,28 @@ spec:
                   in a background goroutine.
                 minimum: 5
                 type: integer
+              scaleUpGuard:
+                description: ScaleUpGuard optional Prometheus gate before increasing
+                  minReplicas.
+                properties:
+                  address:
+                    description: Address defaults to spec.metricSource.address when
+                      empty.
+                    type: string
+                  maxMetricValue:
+                    description: MaxMetricValue is a decimal threshold; scale-up is
+                      blocked when the instant query is strictly greater than this
+                      value.
+                    minLength: 1
+                    type: string
+                  query:
+                    description: Query is PromQL executed as an instant query.
+                    minLength: 1
+                    type: string
+                required:
+                - maxMetricValue
+                - query
+                type: object
               targetDeployment:
                 description: TargetDeployment references the Deployment to forecast
                   for.

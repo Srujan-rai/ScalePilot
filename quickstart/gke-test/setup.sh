@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # ScalePilot GKE Test Setup
 # Usage: ./setup.sh <gcp-project-id> [sa-key-path]
