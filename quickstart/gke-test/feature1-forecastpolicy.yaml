@@ -13,9 +13,9 @@ spec:
     # In-cluster address when operator runs inside the cluster.
     # When running locally via `make run`, use kubectl port-forward and set localhost:9090.
     address: http://localhost:9090
-    # scalar(time()) is a synthetic metric that always increases —
-    # guaranteed to have history and produce a non-trivial forecast.
-    query: 'vector(time())'
+    # Real HTTP request rate to web-frontend — goes up with load, drops when load stops.
+    # This lets ARIMA forecast scale-down as well as scale-up.
+    query: 'sum(rate(container_cpu_usage_seconds_total{namespace="production",pod=~"web-frontend.*"}[2m]))'
     historyDuration: "1h"
     stepInterval: "1m"
   algorithm: ARIMA
@@ -27,7 +27,8 @@ spec:
   # Short retrain interval for fast feedback during testing
   retrainIntervalMinutes: 5
   maxReplicaCap: 10
-  targetMetricValuePerReplica: "100"
+  # Each replica can handle 0.1 CPU cores of sustained load
+  targetMetricValuePerReplica: "0.1"
   # dryRun: true means forecasts are computed and logged but the HPA is
   # NOT modified. Set to false once you trust the output.
   dryRun: true

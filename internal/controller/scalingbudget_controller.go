@@ -71,7 +71,6 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 	now := clk.Now()
 
-	// Build the cost querier from config.
 	var costData *cloudcost.CostData
 	if r.CostQuerierFactory != nil {
 		querier, err := r.CostQuerierFactory(budget.Spec.CloudCost)
@@ -93,7 +92,6 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	// Compute utilization.
 	ceiling := budget.Spec.CeilingMillidollars
 	spend := costData.CurrentSpendMillidollars
 	utilization := 0
@@ -129,7 +127,6 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			now)
 	}
 
-	// Handle breach.
 	if breached && wasNotBreached {
 		actionNote := string(budget.Spec.BreachAction)
 		if reason := scalePolicy.ShouldSuppress(); reason != "" {
@@ -148,7 +145,6 @@ func (r *ScalingBudgetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			now)
 	}
 
-	// Set conditions.
 	costCondition := metav1.Condition{
 		Type:               "CostFetched",
 		Status:             metav1.ConditionTrue,

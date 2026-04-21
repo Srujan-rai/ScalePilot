@@ -70,7 +70,6 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 	}
 	now := clk.Now()
 
-	// Ensure overflow clusters are registered in the cluster registry.
 	if err := r.ensureClustersRegistered(ctx, fso); err != nil {
 		logger.Error(err, "failed to register overflow clusters")
 	}
@@ -129,7 +128,6 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 	// Determine if spillover is needed.
 	spilloverNeeded := currentValue > threshold && !scalePolicy.Blocked && !scalePolicy.GlobalDryRun
 
-	// Check cooldown — prevent thrashing.
 	inCooldown := false
 	if fso.Status.LastScaleTime != nil {
 		elapsed := now.Sub(fso.Status.LastScaleTime.Time)
@@ -207,7 +205,6 @@ func (r *FederatedScaledObjectReconciler) Reconcile(ctx context.Context, req ctr
 		overflowStatuses = append(overflowStatuses, status)
 	}
 
-	// Update status.
 	nowMeta := metav1.NewTime(now)
 	fso.Status.PrimaryReplicas = primaryReplicas
 	fso.Status.TotalReplicas = totalReplicas

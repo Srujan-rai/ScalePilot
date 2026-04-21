@@ -59,7 +59,6 @@ func (w *BreachBlockWebhook) isScaleUpBlocked(ctx context.Context, req admission
 		return false, ""
 	}
 
-	// Check if there's an active budget breach with Block action in this namespace.
 	var budgets autoscalingv1alpha1.ScalingBudgetList
 	if err := w.Client.List(ctx, &budgets, client.InNamespace(ns)); err != nil {
 		return false, ""
@@ -80,7 +79,6 @@ func (w *BreachBlockWebhook) isScaleUpBlocked(ctx context.Context, req admission
 		return false, ""
 	}
 
-	// Check if this is actually a scale-up operation.
 	isScaleUp, err := w.detectScaleUp(req)
 	if err != nil || !isScaleUp {
 		return false, ""
@@ -160,5 +158,4 @@ func (w *BreachBlockWebhook) InjectDecoder(d *admission.Decoder) error {
 	return nil
 }
 
-// Ensure BreachBlockWebhook implements admission.Handler.
 var _ admission.Handler = (*BreachBlockWebhook)(nil)

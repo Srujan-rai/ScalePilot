@@ -101,7 +101,6 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 	now := clk.Now()
 
-	// Check if retraining is needed and trigger it asynchronously.
 	needsRetrain := policy.Status.LastTrainedAt == nil ||
 		now.Sub(policy.Status.LastTrainedAt.Time) > time.Duration(policy.Spec.RetrainIntervalMinutes)*time.Minute
 
@@ -161,7 +160,6 @@ func (r *ForecastPolicyReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return r.updateStatusError(ctx, &policy, "ModelCorrupted", fmt.Sprintf("failed to parse model: %v", err)), nil
 	}
 
-	// Create a forecaster and load the cached params.
 	factory := r.ForecasterFactory
 	if factory == nil {
 		factory = defaultForecasterFactory
