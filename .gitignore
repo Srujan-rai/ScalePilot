@@ -70,3 +70,4 @@ quickstart/gke-test/grafana-provisioning.yaml
 # Local kubebuilder envtest binaries
 testbin/
 INTERNALS.md
+quickstart
