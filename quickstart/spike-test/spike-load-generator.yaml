@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spike-load-generator
+  namespace: production
+  labels:
+    app: spike-load-generator
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: spike-load-generator
+  template:
+    metadata:
+      labels:
+        app: spike-load-generator
+    spec:
+      containers:
+        - name: load-generator
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              LOAD=${LOAD_PARAM:-50000}
+              TARGET=${TARGET_URL:-http://spike-app.production.svc.cluster.local}
+              echo "Sending requests with load=${LOAD} to ${TARGET}"
+              while true; do
+                wget -qO- "${TARGET}/?load=${LOAD}" > /dev/null 2>&1
+              done
+          env:
+            - name: LOAD_PARAM
+              value: "50000"
+            - name: TARGET_URL
+              value: "http://spike-app.production.svc.cluster.local"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

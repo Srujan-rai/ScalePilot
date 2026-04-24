@@ -1,0 +1,108 @@
+{
+  "title": "ScalePilot — Predictive Scaling Demo",
+  "uid": "scalepilot-spike",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Prediction vs Reality — ScalePilot ForecastPolicy",
+      "description": "HPA minReplicas (blue) is raised by ScalePilot BEFORE desiredReplicas (orange) climbs. That gap is the pre-warming effect. CPU% (red) and load pods (grey) show what drove the spike.",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": true,
+            "showPoints": "never"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "HPA minReplicas (ScalePilot)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } },
+              { "id": "custom.lineWidth", "value": 3 },
+              { "id": "custom.fillOpacity", "value": 15 },
+              { "id": "custom.lineStyle", "value": { "fill": "solid" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "HPA desiredReplicas" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "HPA currentReplicas" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } },
+              { "id": "custom.lineWidth", "value": 2 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "CPU % (spike-app)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } },
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [4, 4] } },
+              { "id": "unit", "value": "percent" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Load Pods" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "gray" } },
+              { "id": "custom.fillOpacity", "value": 20 },
+              { "id": "custom.lineWidth", "value": 1 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_horizontalpodautoscaler_spec_min_replicas{namespace=\"production\",horizontalpodautoscaler=\"spike-app-hpa\"}",
+          "legendFormat": "HPA minReplicas (ScalePilot)"
+        },
+        {
+          "refId": "B",
+          "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"production\",horizontalpodautoscaler=\"spike-app-hpa\"}",
+          "legendFormat": "HPA desiredReplicas"
+        },
+        {
+          "refId": "C",
+          "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"production\",horizontalpodautoscaler=\"spike-app-hpa\"}",
+          "legendFormat": "HPA currentReplicas"
+        },
+        {
+          "refId": "D",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"production\",pod=~\"spike-app.*\"}[2m])) * 100",
+          "legendFormat": "CPU % (spike-app)"
+        },
+        {
+          "refId": "E",
+          "expr": "kube_deployment_status_replicas_ready{namespace=\"production\",deployment=\"spike-load-generator\"}",
+          "legendFormat": "Load Pods"
+        }
+      ]
+    }
+  ]
+}

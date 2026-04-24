@@ -55,83 +55,8 @@ rules:
   - autoscaling.scalepilot.io
   resources:
   - clusterscaleprofiles
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
-  - clusterscaleprofiles/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
-  - clusterscaleprofiles/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
   - federatedscaledobjects
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
-  - federatedscaledobjects/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
-  - federatedscaledobjects/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
   - forecastpolicies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
-  - forecastpolicies/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
-  - forecastpolicies/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - autoscaling.scalepilot.io
-  resources:
   - scalingbudgets
   verbs:
   - create
@@ -144,12 +69,18 @@ rules:
 - apiGroups:
   - autoscaling.scalepilot.io
   resources:
+  - clusterscaleprofiles/finalizers
+  - federatedscaledobjects/finalizers
+  - forecastpolicies/finalizers
   - scalingbudgets/finalizers
   verbs:
   - update
 - apiGroups:
   - autoscaling.scalepilot.io
   resources:
+  - clusterscaleprofiles/status
+  - federatedscaledobjects/status
+  - forecastpolicies/status
   - scalingbudgets/status
   verbs:
   - get

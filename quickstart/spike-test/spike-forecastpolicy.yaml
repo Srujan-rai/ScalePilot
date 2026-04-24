@@ -1,0 +1,27 @@
+apiVersion: autoscaling.scalepilot.io/v1alpha1
+kind: ForecastPolicy
+metadata:
+  name: spike-app-forecast
+  namespace: production
+spec:
+  targetDeployment:
+    name: spike-app
+
+  targetHPA:
+    name: spike-app-hpa
+
+  metricSource:
+    address: "http://localhost:9090"
+    query: >-
+      sum(rate(container_cpu_usage_seconds_total{namespace="production",pod=~"spike-app.*"}[2m]))
+    historyDuration: "15m"
+    stepInterval: "30s"
+
+  algorithm: ARIMA
+
+  leadTimeMinutes: 5
+  retrainIntervalMinutes: 5
+
+  targetMetricValuePerReplica: "0.05"
+
+  dryRun: false

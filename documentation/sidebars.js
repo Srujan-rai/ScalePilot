@@ -69,6 +69,11 @@ const sidebars = {
         'contributing/development',
       ],
     },
+    {
+      type: 'doc',
+      id: 'spike-test-report',
+      label: 'Spike Test Report',
+    },
   ],
 };
 

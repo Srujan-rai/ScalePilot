@@ -117,6 +117,11 @@ const config = {
             position: 'left',
           },
           {
+            to: '/docs/spike-test-report',
+            label: 'Test Report',
+            position: 'left',
+          },
+          {
             href: 'https://github.com/srujan-rai/scalepilot',
             label: 'GitHub',
             position: 'right',
