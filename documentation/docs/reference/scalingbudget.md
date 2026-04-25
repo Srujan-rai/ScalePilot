@@ -48,15 +48,15 @@ spec:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `namespace` | `string` | Yes | — | The Kubernetes namespace whose costs are tracked and controlled |
-| `ceilingMillidollars` | `int64` | Yes | — | Monthly cost ceiling in thousandths of a dollar (e.g. `150000` = $150.00). Integer avoids floating-point rounding errors. |
-| `cloudCost` | `CloudCostConfig` | Yes | — | Cloud billing API integration configuration |
+| `namespace` | `string` | Yes | - | The Kubernetes namespace whose costs are tracked and controlled |
+| `ceilingMillidollars` | `int64` | Yes | - | Monthly cost ceiling in thousandths of a dollar (e.g. `150000` = $150.00). Integer avoids floating-point rounding errors. |
+| `cloudCost` | `CloudCostConfig` | Yes | - | Cloud billing API integration configuration |
 | `breachAction` | `Downgrade\|Delay\|Block` | No | `Delay` | What to do when spend exceeds the ceiling |
 | `warningThresholdPercent` | `integer` | No | `80` | Send a warning notification when spend reaches this percentage of the ceiling |
 | `pollIntervalMinutes` | `integer` | No | `5` | How often to query the cloud billing API (minimum: 1) |
-| `notifications` | `NotificationConfig` | No | — | Alert channels for warning and breach events |
+| `notifications` | `NotificationConfig` | No | - | Alert channels for warning and breach events |
 
-### `cloudCost` — `CloudCostConfig`
+### `cloudCost` - `CloudCostConfig`
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -67,7 +67,7 @@ spec:
 
 #### Credential Secret Formats
 
-**AWS** — keys: `aws_access_key_id`, `aws_secret_access_key`
+**AWS** - keys: `aws_access_key_id`, `aws_secret_access_key`
 
 ```yaml
 stringData:
@@ -75,7 +75,7 @@ stringData:
   aws_secret_access_key: ...
 ```
 
-**GCP** — key: `service_account_json`
+**GCP** - key: `service_account_json`
 
 ```yaml
 stringData:
@@ -83,7 +83,7 @@ stringData:
     { "type": "service_account", ... }
 ```
 
-**Azure** — keys: `tenant_id`, `client_id`, `client_secret`, `subscription_id`
+**Azure** - keys: `tenant_id`, `client_id`, `client_secret`, `subscription_id`
 
 ```yaml
 stringData:
@@ -101,7 +101,7 @@ stringData:
 | `Downgrade` | Allows scaling but reduces CPU/memory requests for new pods. The reduction percentage is determined by the operator configuration. Existing pods are not affected. |
 | `Block` | Completely rejects new scale-up events via a validating admission webhook. Any attempt to increase replica counts returns a webhook error. |
 
-### `notifications` — `NotificationConfig`
+### `notifications` - `NotificationConfig`
 
 Both Slack and PagerDuty can be configured simultaneously:
 
@@ -126,7 +126,7 @@ notifications:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `routingKey` | `string` | Yes | — | PagerDuty Events API v2 routing key |
+| `routingKey` | `string` | Yes | - | PagerDuty Events API v2 routing key |
 | `severity` | `string` | No | `warning` | PagerDuty severity: `critical`, `error`, `warning`, or `info` |
 
 ## Status Reference

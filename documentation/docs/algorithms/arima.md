@@ -6,7 +6,7 @@ sidebar_label: ARIMA
 
 # ARIMA Forecasting Algorithm
 
-ScalePilot implements an **ARIMA(p,d,q)** model — *AutoRegressive Integrated Moving Average* — for time-series forecasting. This page explains what ARIMA is, how ScalePilot's implementation works, how to choose parameters, and when to prefer ARIMA over Holt-Winters.
+ScalePilot implements an **ARIMA(p,d,q)** model - *AutoRegressive Integrated Moving Average* - for time-series forecasting. This page explains what ARIMA is, how ScalePilot's implementation works, how to choose parameters, and when to prefer ARIMA over Holt-Winters.
 
 ## What is ARIMA?
 
@@ -53,7 +53,7 @@ The Levinson-Durbin recursion solves this system without matrix inversion, makin
 
 ### 3. Residual Computation and MA Estimation
 
-Residuals (one-step-ahead prediction errors) are computed from the AR fit. MA coefficients are estimated from the **autocorrelation of the residuals** — an approximation that works well in practice for moderate `q` values.
+Residuals (one-step-ahead prediction errors) are computed from the AR fit. MA coefficients are estimated from the **autocorrelation of the residuals** - an approximation that works well in practice for moderate `q` values.
 
 ### 4. Prediction
 
@@ -92,7 +92,7 @@ Trained model parameters (AR/MA coefficients, mean, RMSE, last differenced value
 ConfigMap name: scalepilot-model-<policy-name>
 ```
 
-On each reconcile cycle, the controller loads the ConfigMap and calls `LoadParams()` — an O(1) operation that avoids re-training.
+On each reconcile cycle, the controller loads the ConfigMap and calls `LoadParams()` - an O(1) operation that avoids re-training.
 
 ## Choosing ARIMA Parameters
 
@@ -111,7 +111,7 @@ On each reconcile cycle, the controller loads the ConfigMap and calls `LoadParam
 | CPU with slight upward trend | `(2, 1, 1)` |
 | HTTP request rate (stationary) | `(2, 0, 2)` |
 | Queue depth with drift | `(1, 1, 0)` |
-| Very noisy metric | `(1, 0, 0)` — simple AR |
+| Very noisy metric | `(1, 0, 0)` - simple AR |
 | Step-change metric | `(1, 2, 1)` |
 
 ### Using `scalepilot simulate` to Compare
@@ -143,8 +143,8 @@ Minimum training data requirement: `p + d + q + 10` data points.
 **Choose ARIMA when:**
 
 - Your metric has **no clear seasonal pattern** (it doesn't repeat every 24 hours or 7 days)
-- The metric has a **trend** (consistently rising or falling) — use `d=1`
-- The metric is **stationary** after differencing — use `d=0`
+- The metric has a **trend** (consistently rising or falling) - use `d=1`
+- The metric is **stationary** after differencing - use `d=0`
 - Your data window is shorter (a few days) and Holt-Winters can't initialize its seasonal component reliably
 - You're forecasting **queue depths**, **active connections**, or **non-periodic CPU** usage
 
@@ -198,7 +198,7 @@ spec:
 
 ## Related Resources
 
-- **[Holt-Winters Algorithm](./holt-winters)** — The alternative seasonal forecaster
-- **[ForecastPolicy CRD Reference](../reference/forecastpolicy)** — Full spec
-- **[Predictive Scaling Feature Guide](../features/predictive-scaling)** — When and how to use ForecastPolicy
-- **Source code:** `pkg/forecast/arima.go` — Yule-Walker estimation, Levinson-Durbin recursion, undifferencing
+- **[Holt-Winters Algorithm](./holt-winters)** - The alternative seasonal forecaster
+- **[ForecastPolicy CRD Reference](../reference/forecastpolicy)** - Full spec
+- **[Predictive Scaling Feature Guide](../features/predictive-scaling)** - When and how to use ForecastPolicy
+- **Source code:** `pkg/forecast/arima.go` - Yule-Walker estimation, Levinson-Durbin recursion, undifferencing

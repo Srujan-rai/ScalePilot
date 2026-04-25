@@ -88,7 +88,7 @@ Column descriptions:
 
 ## `scalepilot simulate`
 
-Dry-runs a forecast against live Prometheus data to validate model accuracy before enabling a ForecastPolicy. Fetches historical data, trains the model, and prints predicted values with confidence intervals — without touching any HPA.
+Dry-runs a forecast against live Prometheus data to validate model accuracy before enabling a ForecastPolicy. Fetches historical data, trains the model, and prints predicted values with confidence intervals - without touching any HPA.
 
 ```bash
 scalepilot simulate <forecast-policy-name> [flags]
@@ -137,10 +137,10 @@ Peak (point)=52.10  implied minReplicas=6 (targetMetricValuePerReplica="10.0")
 ```
 
 **Interpretation:**
-- `PREDICTED` — point forecast value
-- `LOWER_95`, `UPPER_95` — 95% confidence interval bounds
-- `Peak` — maximum predicted value over the forecast horizon
-- `implied minReplicas` — replica count ScalePilot would set on the HPA
+- `PREDICTED` - point forecast value
+- `LOWER_95`, `UPPER_95` - 95% confidence interval bounds
+- `Peak` - maximum predicted value over the forecast horizon
+- `implied minReplicas` - replica count ScalePilot would set on the HPA
 
 :::tip Tuning the Model
 Run `scalepilot simulate` with different `arimaParams` values and compare RMSE. A lower RMSE indicates better fit to the historical data. Start with `p=2, d=1, q=1` and adjust based on your metric's autocorrelation structure.
@@ -303,7 +303,7 @@ scalepilot install [flags]
 |------|---------|-------------|
 | `--release-name` | `scalepilot` | Helm release name |
 | `--target-namespace` | `scalepilot-system` | Namespace to install into |
-| `--values` | — | Path to a Helm values YAML file |
+| `--values` | - | Path to a Helm values YAML file |
 | `--create-namespace` | `true` | Create the namespace if it doesn't exist |
 | `--dry-run` | `false` | Render the Helm chart without applying |
 

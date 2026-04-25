@@ -28,13 +28,13 @@ kubectl version --short
 
 ## Prometheus
 
-**Prometheus is required** for any `ForecastPolicy` or `FederatedScaledObject`. ScalePilot queries Prometheus using the HTTP API — it does not need to run inside the cluster, but it must be reachable from the operator pod.
+**Prometheus is required** for any `ForecastPolicy` or `FederatedScaledObject`. ScalePilot queries Prometheus using the HTTP API - it does not need to run inside the cluster, but it must be reachable from the operator pod.
 
 Supported Prometheus deployments:
 
 | Deployment | Notes |
 |-----------|-------|
-| [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) | Recommended — installs Prometheus + Alertmanager + Grafana |
+| [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) | Recommended - installs Prometheus + Alertmanager + Grafana |
 | [Prometheus Operator](https://github.com/prometheus-operator/prometheus-operator) | Supported, any version |
 | Vanilla Prometheus | Supported, v2.x+ |
 | Grafana Cloud / Managed Prometheus | Supported (provide the remote read URL as `metricSource.address`) |

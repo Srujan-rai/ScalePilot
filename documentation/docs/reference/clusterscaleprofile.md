@@ -57,8 +57,8 @@ spec:
 | `maxSurgePercent` | `int32` | No | `25` | Maximum percentage increase in replicas allowed per reconcile cycle, cluster-wide |
 | `defaultCooldownSeconds` | `int32` | No | `60` | Minimum seconds between consecutive scale-up events, cluster-wide |
 | `enableGlobalDryRun` | `bool` | No | `false` | Disable ALL scaling operations cluster-wide; log intended actions only |
-| `blackoutWindows` | `[]BlackoutWindow` | No | — | Time windows during which all scaling is suppressed |
-| `teamOverrides` | `[]TeamOverride` | No | — | Per-team constraints that override cluster defaults |
+| `blackoutWindows` | `[]BlackoutWindow` | No | - | Time windows during which all scaling is suppressed |
+| `teamOverrides` | `[]TeamOverride` | No | - | Per-team constraints that override cluster defaults |
 
 ### `BlackoutWindow`
 
@@ -66,9 +66,9 @@ Blackout windows use standard 5-field cron syntax. Scaling is suppressed for any
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | `string` | Yes | — | Human-readable label for this window (e.g. `"maintenance-friday"`) |
-| `start` | `string` | Yes | — | Cron expression for when the blackout begins |
-| `end` | `string` | Yes | — | Cron expression for when the blackout ends |
+| `name` | `string` | Yes | - | Human-readable label for this window (e.g. `"maintenance-friday"`) |
+| `start` | `string` | Yes | - | Cron expression for when the blackout begins |
+| `end` | `string` | Yes | - | Cron expression for when the blackout ends |
 | `timezone` | `string` | No | `UTC` | IANA timezone identifier (e.g. `"America/New_York"`, `"Asia/Tokyo"`) |
 
 #### Cron Syntax Reference
@@ -100,7 +100,7 @@ blackoutWindows:
     end: "0 0 1 * *"       # 1st midnight UTC (next month)
     timezone: UTC
 
-  # Holiday freeze (specific dates — use with caution)
+  # Holiday freeze (specific dates - use with caution)
   - name: new-year-freeze
     start: "0 0 31 12 *"   # Dec 31 midnight
     end: "0 0 2 1 *"       # Jan 2 midnight
@@ -178,4 +178,4 @@ Every ScalePilot reconciler (ForecastPolicy, FederatedScaledObject) checks the `
 ## Related
 
 - **[ClusterScaleProfile in the Quick Start](../getting-started/quick-start#optional-add-a-clusterscaleprofile)**
-- **[Predictive Scaling — how the profile interacts with ForecastPolicy](../features/predictive-scaling)**
+- **[Predictive Scaling - how the profile interacts with ForecastPolicy](../features/predictive-scaling)**

@@ -4,11 +4,11 @@ title: Spike Test Report
 sidebar_label: Spike Test Report
 ---
 
-# Spike Test Report — ForecastPolicy on GKE
+# Spike Test Report - ForecastPolicy on GKE
 
 **Cluster:** GKE Autopilot `scalepilot-spike-test` (us-central1)  
 **Test period:** 22 Apr 2026 – 24 Apr 2026  
-**Feature tested:** ForecastPolicy (Feature 1 — Predictive Scaling)  
+**Feature tested:** ForecastPolicy (Feature 1 - Predictive Scaling)  
 **Status:** Passed
 
 ---
@@ -38,16 +38,16 @@ The load generator (`spike-load-generator`) drove traffic in four phases to simu
 
 | Phase | Duration | Load pods | CPU load param | Purpose |
 |---|---|---|---|---|
-| 1 — Baseline | 5 min | 0 | — | Model learns idle CPU pattern |
-| 2 — Ramp up | 8 min | 5 | 30,000 | Model sees rising trend |
-| 3 — Spike | 12 min | 10 | 50,000 | Model learns spike shape |
-| 4 — Cooldown | 5 min | 0 | — | Model learns drop pattern |
+| 1 - Baseline | 5 min | 0 | - | Model learns idle CPU pattern |
+| 2 - Ramp up | 8 min | 5 | 30,000 | Model sees rising trend |
+| 3 - Spike | 12 min | 10 | 50,000 | Model learns spike shape |
+| 4 - Cooldown | 5 min | 0 | - | Model learns drop pattern |
 
 ---
 
 ## Model training results
 
-The ARIMA model retrained every 5 minutes throughout the test. RMSE (Root Mean Square Error) measures prediction accuracy — lower is better.
+The ARIMA model retrained every 5 minutes throughout the test. RMSE (Root Mean Square Error) measures prediction accuracy - lower is better.
 
 | Retrain | RMSE | Notes |
 |---|---|---|
@@ -89,7 +89,7 @@ ScalePilot raised `minReplicas` to 15 to match the predicted load. The reactive 
 
 ### After cooldown (Phase 4)
 
-- `currentPrediction` dropped to `0.00` CPU cores — model correctly predicted load removal
+- `currentPrediction` dropped to `0.00` CPU cores - model correctly predicted load removal
 - `predictedMinReplicas` fell back to 1
 - HPA replicas drained back toward 1 as CPU dropped
 
@@ -99,9 +99,9 @@ ScalePilot raised `minReplicas` to 15 to match the predicted load. The reactive 
 
 **1. Model learns fast.** RMSE dropped 77% across 5 retrains (25 minutes). By the third retrain the model had fitted the spike shape well enough to predict correctly.
 
-**2. Model persists between runs.** The trained ARIMA coefficients are stored in a Kubernetes ConfigMap. On a second demo run, the model starts already trained — predictions are accurate from minute 1 with no warm-up needed.
+**2. Model persists between runs.** The trained ARIMA coefficients are stored in a Kubernetes ConfigMap. On a second demo run, the model starts already trained - predictions are accurate from minute 1 with no warm-up needed.
 
-**3. `minReplicas` as the pre-warming lever.** ScalePilot sets HPA `minReplicas` ahead of the predicted spike. The HPA's reactive loop then scales within that floor, meaning pods are already warm when traffic arrives — eliminating cold-start latency.
+**3. `minReplicas` as the pre-warming lever.** ScalePilot sets HPA `minReplicas` ahead of the predicted spike. The HPA's reactive loop then scales within that floor, meaning pods are already warm when traffic arrives - eliminating cold-start latency.
 
 **4. No code changes needed.** The only resource applied was a `ForecastPolicy` CRD pointing at the existing HPA. The application and HPA were not modified.
 
@@ -118,7 +118,7 @@ cd quickstart/spike-test
 ./demo.sh
 
 # Open Grafana at http://localhost:3000 (admin / scalepilot)
-# Dashboard: ScalePilot — Predictive Scaling Demo
+# Dashboard: ScalePilot - Predictive Scaling Demo
 ```
 
 The Grafana dashboard shows five lines on a single graph:
@@ -139,27 +139,27 @@ The pre-warming effect is visible as the **blue line rising before the orange li
 
 The screenshot below was captured from the live Grafana dashboard during the test run.
 
-![ScalePilot spike test — Grafana dashboard](/img/image.png)
+![ScalePilot spike test - Grafana dashboard](/img/image.png)
 
 **What this graph shows:**
 
 Three distinct load events are visible across the test window:
 
-- **Red dashed spikes** — CPU % surging during each load phase (peaks exceeding 500–700%)
-- **Green line** — HPA `currentReplicas` stepping up and holding at an elevated level between spikes (~350% of baseline after first event, ~500% after the second)
-- **Blue line** (visible entering the third segment) — HPA `minReplicas` set by ScalePilot, rising ahead of the next CPU spike
+- **Red dashed spikes** - CPU % surging during each load phase (peaks exceeding 500–700%)
+- **Green line** - HPA `currentReplicas` stepping up and holding at an elevated level between spikes (~350% of baseline after first event, ~500% after the second)
+- **Blue line** (visible entering the third segment) - HPA `minReplicas` set by ScalePilot, rising ahead of the next CPU spike
 
-**Key observation — pre-warming effect:**
+**Key observation - pre-warming effect:**
 
-By the third load event the blue `minReplicas` line is already elevated **before** the red CPU line spikes. This is the predictive pre-warming working — ScalePilot's ARIMA model had learned the spike pattern from the first two events and raised the replica floor in advance, so pods were already warm when traffic arrived.
+By the third load event the blue `minReplicas` line is already elevated **before** the red CPU line spikes. This is the predictive pre-warming working - ScalePilot's ARIMA model had learned the spike pattern from the first two events and raised the replica floor in advance, so pods were already warm when traffic arrived.
 
 **Model convergence visible in the graph:**
 
 - Event 1: ScalePilot reacts after the spike (model not yet trained on this pattern)
 - Event 2: ScalePilot matches the spike in real time
-- Event 3: ScalePilot raises `minReplicas` **before** CPU climbs — prediction leading reality
+- Event 3: ScalePilot raises `minReplicas` **before** CPU climbs - prediction leading reality
 
-This matches the RMSE progression in the training results table above — the model needed two full spike cycles to converge, after which it predicted correctly.
+This matches the RMSE progression in the training results table above - the model needed two full spike cycles to converge, after which it predicted correctly.
 
 ---
 

@@ -58,21 +58,21 @@ spec:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `primaryCluster` | `ClusterRef` | Yes | — | The main cluster where the workload normally runs |
-| `overflowClusters` | `[]ClusterRef` | Yes | — | Clusters that receive spillover workloads (at least 1 required) |
-| `metric` | `SpilloverMetric` | Yes | — | The metric that triggers spillover |
-| `workload` | `WorkloadTemplate` | Yes | — | The Deployment to replicate to overflow clusters |
+| `primaryCluster` | `ClusterRef` | Yes | - | The main cluster where the workload normally runs |
+| `overflowClusters` | `[]ClusterRef` | Yes | - | Clusters that receive spillover workloads (at least 1 required) |
+| `metric` | `SpilloverMetric` | Yes | - | The metric that triggers spillover |
+| `workload` | `WorkloadTemplate` | Yes | - | The Deployment to replicate to overflow clusters |
 | `cooldownSeconds` | `integer` | No | `120` | Minimum seconds between scale events (prevents thrashing; minimum: 30) |
-| `maxTotalReplicas` | `integer` | No | — | Cap on total replicas across all clusters (optional) |
+| `maxTotalReplicas` | `integer` | No | - | Cap on total replicas across all clusters (optional) |
 
 ### `ClusterRef` (used for `primaryCluster` and `overflowClusters`)
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `name` | `string` | Yes | — | Human-readable cluster identifier (used in status and CLI output) |
-| `secretRef` | `SecretReference` | Yes | — | Reference to the Secret containing the cluster kubeconfig |
+| `name` | `string` | Yes | - | Human-readable cluster identifier (used in status and CLI output) |
+| `secretRef` | `SecretReference` | Yes | - | Reference to the Secret containing the cluster kubeconfig |
 | `namespace` | `string` | No | Same as primary workload namespace | Target namespace on this cluster for overflow Deployments |
-| `maxCapacity` | `int32` | No | — | Maximum replicas this cluster can accept during spillover |
+| `maxCapacity` | `int32` | No | - | Maximum replicas this cluster can accept during spillover |
 | `priority` | `int32` | No | `0` | Lower values are used first during cluster selection |
 
 ### `SecretReference`

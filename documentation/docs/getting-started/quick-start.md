@@ -7,7 +7,7 @@ sidebar_label: Quick Start
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Quick Start — 5-Minute Tutorial
+# Quick Start - 5-Minute Tutorial
 
 This tutorial walks you through deploying a sample workload and attaching a `ForecastPolicy` to it. By the end, ScalePilot will be pre-scaling your HPA based on Prometheus predictions.
 
@@ -126,7 +126,7 @@ kubectl apply -f forecast-policy.yaml
 ```
 
 :::tip Start with dryRun: true
-Enable `dryRun: true` when first deploying a ForecastPolicy. ScalePilot will log predictions and intended HPA patches without applying them — giving you a chance to validate model accuracy with `scalepilot simulate`.
+Enable `dryRun: true` when first deploying a ForecastPolicy. ScalePilot will log predictions and intended HPA patches without applying them - giving you a chance to validate model accuracy with `scalepilot simulate`.
 :::
 
 ## Step 3: Watch the ForecastPolicy status
@@ -152,8 +152,8 @@ kubectl describe forecastpolicy web-frontend-forecast -n production
 ```
 
 Look for the `Status.Conditions` section:
-- `ModelReady: True` — model was trained successfully
-- `PatchApplied: True` — HPA was patched (or `False` with reason `DryRun` if dryRun is enabled)
+- `ModelReady: True` - model was trained successfully
+- `PatchApplied: True` - HPA was patched (or `False` with reason `DryRun` if dryRun is enabled)
 
 ## Step 4: Simulate the forecast
 
@@ -302,7 +302,7 @@ The query must return a **scalar or single-element vector**. If it returns multi
 
 ## Next Steps
 
-- **[Predictive Scaling In Depth](../features/predictive-scaling)** — Algorithm selection, ScaleUpGuard, confidence bounds
-- **[Multi-Cluster Federation](../features/multi-cluster-federation)** — Spill workloads to overflow clusters
-- **[FinOps Budgets](../features/finops-budgets)** — Add cost controls with ScalingBudget
-- **[CLI Reference](../cli/reference)** — All CLI commands
+- **[Predictive Scaling In Depth](../features/predictive-scaling)** - Algorithm selection, ScaleUpGuard, confidence bounds
+- **[Multi-Cluster Federation](../features/multi-cluster-federation)** - Spill workloads to overflow clusters
+- **[FinOps Budgets](../features/finops-budgets)** - Add cost controls with ScalingBudget
+- **[CLI Reference](../cli/reference)** - All CLI commands

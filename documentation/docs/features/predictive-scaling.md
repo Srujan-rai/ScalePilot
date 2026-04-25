@@ -93,7 +93,7 @@ spec:
   # replicas = ceil(peakForecast / targetMetricValuePerReplica)
   targetMetricValuePerReplica: "10.0"
 
-  # Optional: SLO gate — skip pre-scaling if error rate is too high
+  # Optional: SLO gate - skip pre-scaling if error rate is too high
   scaleUpGuard:
     query: 'sum(rate(http_requests_total{status=~"5.."}[5m]))'
     maxMetricValue: "50"   # block if 5xx rate > 50 req/s
@@ -201,7 +201,7 @@ This mirrors HPA's `averageValue` logic. If your query returns total request rat
 
 ### Upper Confidence Bound
 
-When `useUpperConfidenceBound: true`, ScalePilot uses the 95% upper confidence interval instead of the point forecast for the peak calculation. This is a more conservative approach — it pre-scales more aggressively but provides a buffer against forecast error.
+When `useUpperConfidenceBound: true`, ScalePilot uses the 95% upper confidence interval instead of the point forecast for the peak calculation. This is a more conservative approach - it pre-scales more aggressively but provides a buffer against forecast error.
 
 ## ScaleUpGuard
 
@@ -258,7 +258,7 @@ ScalePilot exposes Prometheus metrics on port 8080 (configurable via Helm `metri
 
 ### Too many false positives (pre-scaling when not needed)?
 
-- Increase `leadTimeMinutes` — the forecast window is shorter and more accurate closer to the event
+- Increase `leadTimeMinutes` - the forecast window is shorter and more accurate closer to the event
 - Try `useUpperConfidenceBound: false` to use the point estimate rather than the upper bound
 - Add a `scaleUpGuard` to gate on actual observed load
 
@@ -277,7 +277,7 @@ ScalePilot exposes Prometheus metrics on port 8080 (configurable via Helm `metri
 
 ## Related Resources
 
-- **[ARIMA Algorithm](../algorithms/arima)** — How the ARIMA engine works internally
-- **[Holt-Winters Algorithm](../algorithms/holt-winters)** — How triple exponential smoothing works
-- **[ForecastPolicy CRD Reference](../reference/forecastpolicy)** — Full spec and status fields
-- **[CLI: simulate](../cli/reference#scalepilot-simulate)** — Test your model offline
+- **[ARIMA Algorithm](../algorithms/arima)** - How the ARIMA engine works internally
+- **[Holt-Winters Algorithm](../algorithms/holt-winters)** - How triple exponential smoothing works
+- **[ForecastPolicy CRD Reference](../reference/forecastpolicy)** - Full spec and status fields
+- **[CLI: simulate](../cli/reference#scalepilot-simulate)** - Test your model offline

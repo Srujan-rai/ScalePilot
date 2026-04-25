@@ -28,7 +28,7 @@ This guide covers setting up a local development environment for ScalePilot, run
 ```
 scalepilot/
 ├── cmd/
-│   ├── operator/main.go               # Operator entry point — wires DI, starts manager
+│   ├── operator/main.go               # Operator entry point - wires DI, starts manager
 │   └── scalepilot/                    # Cobra CLI binary
 │       ├── main.go
 │       └── cmd/
@@ -262,14 +262,14 @@ golangci-lint run --timeout 5m
 ```
 
 Key linters enabled:
-- `govet` — correctness
-- `errcheck` — unhandled errors
-- `staticcheck` — static analysis
-- `gosec` — security
-- `exhaustive` — exhaustive enum switches
-- `gocognit` — cognitive complexity
-- `misspell` — spelling
-- `unconvert` — unnecessary type conversions
+- `govet` - correctness
+- `errcheck` - unhandled errors
+- `staticcheck` - static analysis
+- `gosec` - security
+- `exhaustive` - exhaustive enum switches
+- `gocognit` - cognitive complexity
+- `misspell` - spelling
+- `unconvert` - unnecessary type conversions
 
 ## Adding a New Feature
 
@@ -313,19 +313,19 @@ Add the new algorithm as a value to `ForecastAlgorithm` in `api/v1alpha1/forecas
 
 ## Code Style Guidelines
 
-- **No global variables** — all state is passed via struct fields or function arguments
-- **Explicit error handling** — every error must be handled or explicitly ignored with a comment
-- **Context propagation** — all I/O operations accept a `context.Context` as the first argument
-- **Interface-first** — external dependencies are defined as interfaces in the consuming package
+- **No global variables** - all state is passed via struct fields or function arguments
+- **Explicit error handling** - every error must be handled or explicitly ignored with a comment
+- **Context propagation** - all I/O operations accept a `context.Context` as the first argument
+- **Interface-first** - external dependencies are defined as interfaces in the consuming package
 - **Short variable names in closures, descriptive names for exported symbols**
-- **Structured logging** — use `ctrl.Log.WithValues("key", val).Info(...)` not `fmt.Println`
-- **Reconciler design** — return `ctrl.Result{RequeueAfter: ...}` for periodic work; never sleep in a reconciler
+- **Structured logging** - use `ctrl.Log.WithValues("key", val).Info(...)` not `fmt.Println`
+- **Reconciler design** - return `ctrl.Result{RequeueAfter: ...}` for periodic work; never sleep in a reconciler
 
 ## Submitting a Pull Request
 
 1. **Fork** the repository and create a branch from `main`
 2. **Make your changes** and add tests
-3. **Run** `make lint test` — both must pass
+3. **Run** `make lint test` - both must pass
 4. **Run** `make manifests generate` if you changed any types in `api/`
 5. **Commit** with a clear message: `feat(forecast): add SARIMA(p,d,q,P,D,Q,s) support`
 6. **Open a PR** against `main` with a description of the change and any relevant issue numbers

@@ -189,7 +189,7 @@ spec:
   # ...pod template copied from primary Deployment...
 ```
 
-Using `FieldManager: "scalepilot"` with server-side apply means repeated reconciles are idempotent — no conflicts if the Deployment already exists.
+Using `FieldManager: "scalepilot"` with server-side apply means repeated reconciles are idempotent - no conflicts if the Deployment already exists.
 
 ## Monitoring Federation Status
 
@@ -264,7 +264,7 @@ The ScalePilot operator pod must be able to reach each overflow cluster's Kubern
 
 | Setup | Notes |
 |-------|-------|
-| VPN or private peering | Recommended for production — kubeconfig uses internal API server URL |
+| VPN or private peering | Recommended for production - kubeconfig uses internal API server URL |
 | Public API server | Kubeconfig uses public endpoint; ensure firewall allows operator egress |
 | Cloud load balancer | EKS/GKE/AKS public endpoints work out of the box |
 
@@ -274,7 +274,7 @@ Kubeconfig Secrets contain cluster credentials. Apply appropriate Kubernetes RBA
 
 ## Scaling Down
 
-When the metric drops below the threshold (and cooldown has elapsed), ScalePilot sets overflow Deployment `replicas` to 0 — it does NOT delete the Deployment. This is intentional:
+When the metric drops below the threshold (and cooldown has elapsed), ScalePilot sets overflow Deployment `replicas` to 0 - it does NOT delete the Deployment. This is intentional:
 
 - Faster scale-up next time (Deployment object already exists)
 - Kubernetes scheduler keeps the replica set object for historical info
@@ -290,6 +290,6 @@ kubectl delete federatedscaledobject order-processor-federation -n production
 
 ## Related Resources
 
-- **[FederatedScaledObject CRD Reference](../reference/federatedscaledobject)** — Full spec and status fields
-- **[CLI: clusters list](../cli/reference#scalepilot-clusters-list)** — Live cluster status table
-- **[ClusterScaleProfile](../reference/clusterscaleprofile)** — Cluster-wide scaling governance
+- **[FederatedScaledObject CRD Reference](../reference/federatedscaledobject)** - Full spec and status fields
+- **[CLI: clusters list](../cli/reference#scalepilot-clusters-list)** - Live cluster status table
+- **[ClusterScaleProfile](../reference/clusterscaleprofile)** - Cluster-wide scaling governance

@@ -211,6 +211,6 @@ Deleting CRDs will permanently delete all ScalePilot custom resources in your cl
 
 ## Next Steps
 
-- **[Quick Start](./quick-start)** — Deploy your first ForecastPolicy in 5 minutes
-- **[Helm Values Reference](../deployment/helm)** — All available Helm values
-- **[Predictive Scaling](../features/predictive-scaling)** — Configure ForecastPolicy
+- **[Quick Start](./quick-start)** - Deploy your first ForecastPolicy in 5 minutes
+- **[Helm Values Reference](../deployment/helm)** - All available Helm values
+- **[Predictive Scaling](../features/predictive-scaling)** - Configure ForecastPolicy

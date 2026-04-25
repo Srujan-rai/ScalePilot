@@ -308,6 +308,6 @@ Instead of storing AWS/GCP/Azure credentials in GitHub Secrets, use IRSA (AWS), 
 
 ## Related Resources
 
-- **[Helm Values Reference](./helm)** — All Helm configuration options
-- **[Installation](../getting-started/installation)** — Manual installation guide
-- **[Contributing / Development](../contributing/development)** — Local dev setup
+- **[Helm Values Reference](./helm)** - All Helm configuration options
+- **[Installation](../getting-started/installation)** - Manual installation guide
+- **[Contributing / Development](../contributing/development)** - Local dev setup

@@ -52,19 +52,19 @@ spec:
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `targetDeployment` | `TargetDeploymentRef` | Yes | — | The Deployment to forecast for |
-| `targetHPA` | `TargetHPARef` | Yes | — | The HPA whose `minReplicas` gets patched |
-| `metricSource` | `PrometheusMetricSource` | Yes | — | Prometheus query configuration |
+| `targetDeployment` | `TargetDeploymentRef` | Yes | - | The Deployment to forecast for |
+| `targetHPA` | `TargetHPARef` | Yes | - | The HPA whose `minReplicas` gets patched |
+| `metricSource` | `PrometheusMetricSource` | Yes | - | Prometheus query configuration |
 | `algorithm` | `ARIMA` or `HoltWinters` | No | `ARIMA` | Forecasting algorithm to use |
 | `arimaParams` | `ARIMAParams` | No | `p=2,d=1,q=1` | ARIMA hyperparameters (required when `algorithm: ARIMA`) |
-| `holtWintersParams` | `HoltWintersParams` | No | — | Holt-Winters parameters (required when `algorithm: HoltWinters`) |
+| `holtWintersParams` | `HoltWintersParams` | No | - | Holt-Winters parameters (required when `algorithm: HoltWinters`) |
 | `leadTimeMinutes` | `integer` | No | `5` | Minutes ahead of the spike to pre-scale (range: 3–10) |
 | `retrainIntervalMinutes` | `integer` | No | `30` | How often (in minutes) to retrain the forecasting model |
-| `maxReplicaCap` | `integer` | No | — | Maximum value ScalePilot will set for `minReplicas` |
+| `maxReplicaCap` | `integer` | No | - | Maximum value ScalePilot will set for `minReplicas` |
 | `dryRun` | `boolean` | No | `false` | Log predictions without applying HPA patches |
-| `targetMetricValuePerReplica` | `string` | No | — | Decimal: metric load each replica handles; `replicas = ceil(peak / value)` |
+| `targetMetricValuePerReplica` | `string` | No | - | Decimal: metric load each replica handles; `replicas = ceil(peak / value)` |
 | `useUpperConfidenceBound` | `boolean` | No | `false` | Use the 95% upper confidence bound instead of point forecast |
-| `scaleUpGuard` | `ScaleUpGuard` | No | — | Optional Prometheus gate that can block HPA patches |
+| `scaleUpGuard` | `ScaleUpGuard` | No | - | Optional Prometheus gate that can block HPA patches |
 
 ### `targetDeployment`
 
@@ -93,9 +93,9 @@ Required when `algorithm: ARIMA`. All fields have CRD-level validation.
 
 | Field | Type | Required | Range | Description |
 |-------|------|----------|-------|-------------|
-| `p` | `integer` | Yes | 0–10 | Autoregressive order — how many lagged values to use |
-| `d` | `integer` | Yes | 0–3 | Differencing order — how many times to difference the series |
-| `q` | `integer` | Yes | 0–10 | Moving-average order — how many lagged residuals to use |
+| `p` | `integer` | Yes | 0–10 | Autoregressive order - how many lagged values to use |
+| `d` | `integer` | Yes | 0–3 | Differencing order - how many times to difference the series |
+| `q` | `integer` | Yes | 0–10 | Moving-average order - how many lagged residuals to use |
 
 ### `holtWintersParams`
 

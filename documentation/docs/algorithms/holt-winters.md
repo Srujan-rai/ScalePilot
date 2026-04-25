@@ -6,7 +6,7 @@ sidebar_label: Holt-Winters
 
 # Holt-Winters Algorithm
 
-ScalePilot implements **additive Holt-Winters triple exponential smoothing** for forecasting metrics that exhibit seasonal patterns — daily traffic cycles, weekly batch job rhythms, or any repeating periodic behavior.
+ScalePilot implements **additive Holt-Winters triple exponential smoothing** for forecasting metrics that exhibit seasonal patterns - daily traffic cycles, weekly batch job rhythms, or any repeating periodic behavior.
 
 ## What is Holt-Winters?
 
@@ -51,9 +51,9 @@ Seasonal_t = γ × (y[t] - Level_t)          + (1 - γ) × Seasonal[t mod m]
 ```
 
 Where:
-- `α` ∈ (0,1] — level smoothing: how fast the baseline adapts to new data
-- `β` ∈ (0,1] — trend smoothing: how fast the trend direction updates
-- `γ` ∈ (0,1] — seasonal smoothing: how fast seasonal patterns update
+- `α` ∈ (0,1] - level smoothing: how fast the baseline adapts to new data
+- `β` ∈ (0,1] - trend smoothing: how fast the trend direction updates
+- `γ` ∈ (0,1] - seasonal smoothing: how fast seasonal patterns update
 
 ### Forecasting
 
@@ -67,7 +67,7 @@ Where `n` is the length of the training series.
 
 ### Confidence Intervals
 
-Same as ARIMA — the 95% CI widens with the forecast horizon:
+Same as ARIMA - the 95% CI widens with the forecast horizon:
 
 ```
 SE[h] = RMSE × √h
@@ -85,9 +85,9 @@ Trained parameters (`level`, `trend`, `seasonal[0..m-1]`, `rmse`) are serialized
 
 | Coefficient | Low (near 0) | High (near 1) |
 |-------------|-------------|--------------|
-| **α (alpha)** — level | Slow adaptation, very stable baseline | Fast adaptation, responsive but noisy |
-| **β (beta)** — trend | Ignores short-term trend changes | Aggressively tracks new trend directions |
-| **γ (gamma)** — seasonal | Seasonal pattern rarely updates | Seasonal pattern updates quickly each cycle |
+| **α (alpha)** - level | Slow adaptation, very stable baseline | Fast adaptation, responsive but noisy |
+| **β (beta)** - trend | Ignores short-term trend changes | Aggressively tracks new trend directions |
+| **γ (gamma)** - seasonal | Seasonal pattern rarely updates | Seasonal pattern updates quickly each cycle |
 
 ### Recommended Starting Values
 
@@ -118,7 +118,7 @@ You need at least **2 × seasonalPeriods** data points to initialize the model. 
 
 **Choose Holt-Winters when:**
 
-- Your metric shows **clear repeating patterns** — morning peak, evening dip, weekend drop
+- Your metric shows **clear repeating patterns** - morning peak, evening dip, weekend drop
 - You have at least **2 full seasonal cycles** of historical data
 - Traffic peaks are **roughly the same height** across different absolute load levels (additive seasonality)
 - You're forecasting **web request rates**, **API throughput**, **user session counts**
@@ -193,7 +193,7 @@ spec:
 ```
 
 :::warning High seasonalPeriods and Memory
-A `seasonalPeriods` of 288 means 288 seasonal coefficients are stored in the ConfigMap. This is fine — each coefficient is a float64 (8 bytes), so 288 coefficients ≈ 2.3 KB. For `seasonalPeriods: 2016` (weekly at 5m), it's ~16 KB, well within ConfigMap limits.
+A `seasonalPeriods` of 288 means 288 seasonal coefficients are stored in the ConfigMap. This is fine - each coefficient is a float64 (8 bytes), so 288 coefficients ≈ 2.3 KB. For `seasonalPeriods: 2016` (weekly at 5m), it's ~16 KB, well within ConfigMap limits.
 :::
 
 ## Holt-Winters vs ARIMA Quick Reference
@@ -210,7 +210,7 @@ A `seasonalPeriods` of 288 means 288 seasonal coefficients are stored in the Con
 
 ## Related Resources
 
-- **[ARIMA Algorithm](./arima)** — The alternative non-seasonal forecaster
-- **[ForecastPolicy CRD Reference](../reference/forecastpolicy)** — Full spec
-- **[Predictive Scaling Feature Guide](../features/predictive-scaling)** — When and how to use ForecastPolicy
-- **Source code:** `pkg/forecast/holtwinters.go` — Triple exponential smoothing implementation
+- **[ARIMA Algorithm](./arima)** - The alternative non-seasonal forecaster
+- **[ForecastPolicy CRD Reference](../reference/forecastpolicy)** - Full spec
+- **[Predictive Scaling Feature Guide](../features/predictive-scaling)** - When and how to use ForecastPolicy
+- **Source code:** `pkg/forecast/holtwinters.go` - Triple exponential smoothing implementation

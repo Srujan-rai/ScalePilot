@@ -290,13 +290,13 @@ In your `ScalingBudget`, omit `credentialsSecretRef` and the operator will use t
 
 When `prometheusRule.enabled: true`, the chart creates a `PrometheusRule` with alerts for:
 
-- `ScalePilotModelTrainingFailure` — model training has been failing for > 5 minutes
-- `ScalePilotBudgetBreached` — a ScalingBudget is in breach state
-- `ScalePilotOperatorDown` — the operator has been unreachable for > 2 minutes
+- `ScalePilotModelTrainingFailure` - model training has been failing for > 5 minutes
+- `ScalePilotBudgetBreached` - a ScalingBudget is in breach state
+- `ScalePilotOperatorDown` - the operator has been unreachable for > 2 minutes
 
 The rule requires the `monitoring.coreos.com/v1` CRD (installed by kube-prometheus-stack or prometheus-operator). Set `prometheusRule.additionalLabels` to match your Prometheus's `ruleSelector`.
 
 ## Related Resources
 
-- **[Installation](../getting-started/installation)** — General installation guide
-- **[GitHub Actions CI/CD](./github-actions)** — Automate deployments
+- **[Installation](../getting-started/installation)** - General installation guide
+- **[GitHub Actions CI/CD](./github-actions)** - Automate deployments

@@ -9,7 +9,7 @@ import TabItem from '@theme/TabItem';
 
 # FinOps ScalingBudget
 
-`ScalingBudget` defines a namespace-scoped monthly cost ceiling. It polls cloud billing APIs (AWS Cost Explorer, GCP Billing, Azure Cost Management), computes real spend against the ceiling, and enforces one of three breach actions — automatically, without manual intervention.
+`ScalingBudget` defines a namespace-scoped monthly cost ceiling. It polls cloud billing APIs (AWS Cost Explorer, GCP Billing, Azure Cost Management), computes real spend against the ceiling, and enforces one of three breach actions - automatically, without manual intervention.
 
 ## How It Works
 
@@ -40,7 +40,7 @@ When `status.breached` becomes `true`, ScalePilot enforces one of three actions:
 |--------|----------|---------|
 | `Delay` | Pauses all scale-up events in the namespace until the next billing period. Existing replicas are unaffected. | You want to stop cost growth immediately but can't downgrade resources |
 | `Downgrade` | Reduces CPU/memory requests for new pods created by scale-up events. Existing pods remain unchanged. | You want scaling to continue but at lower resource intensity |
-| `Block` | Rejects scale-up entirely via a validating admission webhook. New replica creation fails with a budget error. | Zero-tolerance cost ceiling — no scaling allowed when breached |
+| `Block` | Rejects scale-up entirely via a validating admission webhook. New replica creation fails with a budget error. | Zero-tolerance cost ceiling - no scaling allowed when breached |
 
 :::tip Recommended Action for Production
 `Delay` is the safest default for most teams. It stops cost growth without affecting running workloads, and automatically lifts when the next billing period starts (typically the 1st of the month).
@@ -281,7 +281,7 @@ Status:
 
 ```json
 {
-  "text": "⚠️ *ScalePilot Budget Warning* — `production` namespace",
+  "text": "⚠️ *ScalePilot Budget Warning* - `production` namespace",
   "attachments": [{
     "color": "warning",
     "fields": [
@@ -368,6 +368,6 @@ spec:
 
 ## Related Resources
 
-- **[ScalingBudget CRD Reference](../reference/scalingbudget)** — Full spec and status fields
-- **[CLI: budget status](../cli/reference#scalepilot-budget-status)** — Live budget dashboard
-- **[GitHub Actions integration](../deployment/github-actions)** — Add budget checks to CI/CD
+- **[ScalingBudget CRD Reference](../reference/scalingbudget)** - Full spec and status fields
+- **[CLI: budget status](../cli/reference#scalepilot-budget-status)** - Live budget dashboard
+- **[GitHub Actions integration](../deployment/github-actions)** - Add budget checks to CI/CD
