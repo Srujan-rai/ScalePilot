@@ -135,6 +135,34 @@ The pre-warming effect is visible as the **blue line rising before the orange li
 
 ---
 
+## Grafana observation
+
+The screenshot below was captured from the live Grafana dashboard during the test run.
+
+![ScalePilot spike test — Grafana dashboard](/img/image.png)
+
+**What this graph shows:**
+
+Three distinct load events are visible across the test window:
+
+- **Red dashed spikes** — CPU % surging during each load phase (peaks exceeding 500–700%)
+- **Green line** — HPA `currentReplicas` stepping up and holding at an elevated level between spikes (~350% of baseline after first event, ~500% after the second)
+- **Blue line** (visible entering the third segment) — HPA `minReplicas` set by ScalePilot, rising ahead of the next CPU spike
+
+**Key observation — pre-warming effect:**
+
+By the third load event the blue `minReplicas` line is already elevated **before** the red CPU line spikes. This is the predictive pre-warming working — ScalePilot's ARIMA model had learned the spike pattern from the first two events and raised the replica floor in advance, so pods were already warm when traffic arrived.
+
+**Model convergence visible in the graph:**
+
+- Event 1: ScalePilot reacts after the spike (model not yet trained on this pattern)
+- Event 2: ScalePilot matches the spike in real time
+- Event 3: ScalePilot raises `minReplicas` **before** CPU climbs — prediction leading reality
+
+This matches the RMSE progression in the training results table above — the model needed two full spike cycles to converge, after which it predicted correctly.
+
+---
+
 ## Conclusion
 
 ScalePilot's ForecastPolicy successfully trained an ARIMA model on real Prometheus CPU metrics from a GKE workload and used it to predictively pre-warm HPA `minReplicas` ahead of traffic spikes. The model reached 77% lower RMSE within 25 minutes of training and persists across operator restarts via a Kubernetes ConfigMap. The end-to-end test confirms Feature 1 works correctly on a real GKE Autopilot cluster with genuine CPU pressure.
