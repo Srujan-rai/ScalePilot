@@ -107,32 +107,6 @@ ScalePilot raised `minReplicas` to 15 to match the predicted load. The reactive 
 
 ---
 
-## How to reproduce
-
-```bash
-# 1. One-time cluster setup
-cd quickstart/spike-test
-./run.sh <gcp-project-id>
-
-# 2. Run the demo (30-minute cycle)
-./demo.sh
-
-# Open Grafana at http://localhost:3000 (admin / scalepilot)
-# Dashboard: ScalePilot - Predictive Scaling Demo
-```
-
-The Grafana dashboard shows five lines on a single graph:
-
-| Line | Colour | What it shows |
-|---|---|---|
-| HPA minReplicas | Blue | ScalePilot's prediction materialised |
-| HPA desiredReplicas | Orange | Reactive HPA response |
-| HPA currentReplicas | Green | Actual pods running |
-| CPU % | Red dashed | Load pressure |
-| Load pods | Grey | Traffic generator replicas |
-
-The pre-warming effect is visible as the **blue line rising before the orange line** during Phase 3.
-
 ---
 
 ## Grafana observation
